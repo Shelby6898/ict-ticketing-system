@@ -14,17 +14,16 @@ const compression = require('compression');
 
 // ---------------- APP INIT ----------------
 const app = express();
-app.set('trust proxy', 1); 
+// Railway fix: trust proxy enabled - v2
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 5000;
 const SECRET = process.env.JWT_SECRET || "CHANGE_ME";
 
 // ---------------- FIREBASE INIT (FIXED) ----------------
+const serviceAccount = require('./serviceAccountKey.json');
+
 admin.initializeApp({
-  credential: admin.credential.cert({
-    projectId: process.env.FIREBASE_PROJECT_ID,
-    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-    privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
-  }),
+  credential: admin.credential.cert(serviceAccount),
   storageBucket: "ict-ticketing-system-39542.appspot.com"
 });
 
