@@ -18,10 +18,12 @@ const PORT = process.env.PORT || 5000;
 const SECRET = process.env.JWT_SECRET || "CHANGE_ME";
 
 // ---------------- FIREBASE INIT (FIXED) ----------------
-const serviceAccount = require('./serviceAccountKey.json');
-
 admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
+  credential: admin.credential.cert({
+    projectId: process.env.FIREBASE_PROJECT_ID,
+    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+    privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
+  }),
   storageBucket: "ict-ticketing-system-39542.appspot.com"
 });
 
