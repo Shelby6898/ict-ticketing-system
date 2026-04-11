@@ -14,6 +14,7 @@ const compression = require('compression');
 
 // ---------------- APP INIT ----------------
 const app = express();
+app.set('trust proxy', 1); 
 const PORT = process.env.PORT || 5000;
 const SECRET = process.env.JWT_SECRET || "CHANGE_ME";
 
