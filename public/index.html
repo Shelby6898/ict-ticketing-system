@@ -1023,21 +1023,10 @@ async function login() {
     localStorage.setItem('ict_user', JSON.stringify(currentUser));
     initSession();
   } catch(e) {
-    if (email === 'admin@ict.com' && pass === 'admin123') {
-      currentUser = { id:'admin', name:'Administrator', email, role:'admin' };
-    } else {
-      const stored = localStorage.getItem('demoUser_' + email);
-      if (!stored) return showErr('loginErr', e.message || 'Invalid credentials.');
-      const u = JSON.parse(stored);
-      if (u.pass !== pass) return showErr('loginErr', 'Invalid credentials.');
-      currentUser = { id: 'u_'+Date.now(), name: u.name, email, role:'user' };
-    }
-    token = 'demo_token';
-    localStorage.setItem('ict_token', token);
-    localStorage.setItem('ict_user', JSON.stringify(currentUser));
-    initSession();
+    showErr('loginErr', e.message || 'Invalid credentials.');
+  } finally {
+    setLoading('loginBtn', false);
   }
-  setLoading('loginBtn', false);
 }
 
 async function forgotPassword() {
