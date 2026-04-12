@@ -22,7 +22,7 @@ const PORT = process.env.PORT || 5000;
 const SECRET = process.env.JWT_SECRET || "CHANGE_ME";
 
 // ---------------- FIREBASE INIT (FIXED) ----------------
-const serviceAccount = require('./serviceAccountKey.json');
+const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
