@@ -49,7 +49,7 @@ app.use(express.urlencoded({ extended: true }));
 // ---------------- SERVE INDEX WITH RUNTIME API URL FIX ----------------
 app.get('/', (req, res) => {
   let html = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
-  html = html.replace("http://localhost:5000/api", "https://ict-ticketing-system-production.up.railway.app/api");
+  html = html.replace(/const API = ['"].*?['"]/g, "const API = 'https://ict-ticketing-system-production.up.railway.app/api'");
   res.send(html);
 });
 
