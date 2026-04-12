@@ -1,6 +1,8 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const fs = require('fs');
+const path = require('path');
 const admin = require('firebase-admin');
 const nodemailer = require('nodemailer');
 const bcrypt = require('bcrypt');
@@ -43,6 +45,14 @@ app.use(cors({
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// ---------------- SERVE INDEX WITH RUNTIME API URL FIX ----------------
+app.get('/', (req, res) => {
+  let html = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
+  html = html.replace("http://localhost:5000/api", "https://ict-ticketing-system-production.up.railway.app/api");
+  res.send(html);
+});
+
 app.use(express.static('public'));
 
 // ---------------- RATE LIMITING ----------------
@@ -245,7 +255,6 @@ app.put('/api/tickets/:id', auth, isAdmin, async (req, res, next) => {
     const { status } = req.body;
     const ticketRef = db.collection('tickets').doc(req.params.id);
 
-    // Get ticket details first
     const ticketSnap = await ticketRef.get();
     if (!ticketSnap.exists) {
       return res.status(404).json({ error: 'Ticket not found' });
@@ -253,10 +262,8 @@ app.put('/api/tickets/:id', auth, isAdmin, async (req, res, next) => {
 
     const ticket = ticketSnap.data();
 
-    // Update status
     await ticketRef.update({ status });
 
-    // Status labels and colors
     const statusConfig = {
       'open':        { label: 'Open',        color: '#ffa502', emoji: '🟡' },
       'in-progress': { label: 'In Progress', color: '#00d4ff', emoji: '🔵' },
@@ -265,7 +272,6 @@ app.put('/api/tickets/:id', auth, isAdmin, async (req, res, next) => {
 
     const cfg = statusConfig[status] || { label: status, color: '#888', emoji: '📋' };
 
-    // Email the user
     transporter.sendMail({
       from: `"ICT HelpDesk" <${process.env.EMAIL_USER}>`,
       to: ticket.userEmail,
