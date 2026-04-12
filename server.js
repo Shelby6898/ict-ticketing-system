@@ -4,7 +4,7 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const admin = require('firebase-admin');
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
@@ -16,12 +16,12 @@ const compression = require('compression');
 
 // ---------------- APP INIT ----------------
 const app = express();
-// Railway fix: trust proxy enabled - v2
+// Railway fix: trust proxy enabled
 app.set('trust proxy', 1);
 const PORT = process.env.PORT || 5000;
 const SECRET = process.env.JWT_SECRET || "CHANGE_ME";
 
-// ---------------- FIREBASE INIT (FIXED) ----------------
+// ---------------- FIREBASE INIT ----------------
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 
 admin.initializeApp({
@@ -31,6 +31,23 @@ admin.initializeApp({
 
 const db = admin.firestore();
 const bucket = admin.storage().bucket();
+
+// ---------------- RESEND EMAIL INIT ----------------
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+// Helper to send email via Resend
+async function sendEmail({ to, subject, html }) {
+  try {
+    await resend.emails.send({
+      from: 'ICT HelpDesk <onboarding@resend.dev>',
+      to,
+      subject,
+      html
+    });
+  } catch (e) {
+    console.error('Email error:', e.message);
+  }
+}
 
 // ---------------- SECURITY MIDDLEWARE ----------------
 app.use(helmet({
@@ -67,17 +84,6 @@ app.use(limiter);
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 }
-});
-
-// ---------------- EMAIL ----------------
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 587,
-  secure: false,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  }
 });
 
 // ---------------- AUTH MIDDLEWARE ----------------
@@ -187,8 +193,7 @@ app.post('/api/tickets', auth, async (req, res, next) => {
     });
 
     // Email to user
-    transporter.sendMail({
-      from: `"ICT HelpDesk" <${process.env.EMAIL_USER}>`,
+    sendEmail({
       to: req.user.email,
       subject: `✅ Ticket Received — ${title}`,
       html: `
@@ -206,12 +211,11 @@ app.post('/api/tickets', auth, async (req, res, next) => {
           <p style="color:#888;font-size:13px;">You will be notified when the status changes.</p>
         </div>
       `
-    }).catch(e => console.error('User email error:', e.message));
+    });
 
     // Email to admin
-    transporter.sendMail({
-      from: `"ICT HelpDesk" <${process.env.EMAIL_USER}>`,
-      to: process.env.EMAIL_USER,
+    sendEmail({
+      to: process.env.ADMIN_EMAIL || process.env.EMAIL_USER,
       subject: `🎫 New Ticket — ${title} [${(priority||'').toUpperCase()}]`,
       html: `
         <div style="font-family:sans-serif;max-width:520px;margin:auto;padding:32px;background:#f9f9f9;border-radius:12px;">
@@ -227,7 +231,7 @@ app.post('/api/tickets', auth, async (req, res, next) => {
           <p style="color:#888;font-size:13px;">Login to the admin dashboard to manage this ticket.</p>
         </div>
       `
-    }).catch(e => console.error('Admin email error:', e.message));
+    });
 
     res.json({ id: doc.id });
   } catch (err) {
@@ -263,7 +267,6 @@ app.put('/api/tickets/:id', auth, isAdmin, async (req, res, next) => {
     }
 
     const ticket = ticketSnap.data();
-
     await ticketRef.update({ status });
 
     const statusConfig = {
@@ -274,8 +277,8 @@ app.put('/api/tickets/:id', auth, isAdmin, async (req, res, next) => {
 
     const cfg = statusConfig[status] || { label: status, color: '#888', emoji: '📋' };
 
-    transporter.sendMail({
-      from: `"ICT HelpDesk" <${process.env.EMAIL_USER}>`,
+    // Email the user about status update
+    sendEmail({
       to: ticket.userEmail,
       subject: `${cfg.emoji} Ticket Update — ${ticket.title}`,
       html: `
@@ -289,11 +292,14 @@ app.put('/api/tickets/:id', auth, isAdmin, async (req, res, next) => {
             <p><strong>New Status:</strong> <span style="color:${cfg.color};font-weight:700;">${cfg.label}</span></p>
             <p><strong>Priority:</strong> ${ticket.priority}</p>
           </div>
-          ${status === 'closed' ? `<p style="color:#2ed573;font-weight:600;">Your issue has been resolved. Thank you for reaching out!</p>` : `<p>Our team is actively working on your issue. We will keep you updated.</p>`}
+          ${status === 'closed'
+            ? `<p style="color:#2ed573;font-weight:600;">Your issue has been resolved. Thank you for reaching out!</p>`
+            : `<p>Our team is actively working on your issue. We will keep you updated.</p>`
+          }
           <p style="color:#888;font-size:13px;">If you have further questions, please submit a new ticket.</p>
         </div>
       `
-    }).catch(e => console.error('Status email error:', e.message));
+    });
 
     res.json({ message: 'Ticket updated' });
   } catch (err) {
@@ -347,7 +353,6 @@ app.post('/api/upload/:ticketId', auth, upload.single('file'), async (req, res, 
       .add({ url });
 
     res.json({ url });
-
   } catch (err) {
     next(err);
   }
@@ -367,17 +372,22 @@ app.post('/api/forgot-password', async (req, res, next) => {
     }
 
     const token = jwt.sign({ email }, SECRET, { expiresIn: '10m' });
-
     const link = `${process.env.BASE_URL}/reset-password/${token}`;
 
-    await transporter.sendMail({
+    await sendEmail({
       to: email,
-      subject: 'Password Reset',
-      text: `Reset your password: ${link}`
+      subject: 'Password Reset — ICT HelpDesk',
+      html: `
+        <div style="font-family:sans-serif;max-width:520px;margin:auto;padding:32px;background:#f9f9f9;border-radius:12px;">
+          <h2 style="color:#7c5cfc;">ICT HelpDesk</h2>
+          <p>Click the link below to reset your password. This link expires in 10 minutes.</p>
+          <a href="${link}" style="display:inline-block;margin-top:16px;padding:12px 24px;background:#7c5cfc;color:#fff;border-radius:8px;text-decoration:none;">Reset Password</a>
+          <p style="color:#888;font-size:13px;margin-top:20px;">If you didn't request this, ignore this email.</p>
+        </div>
+      `
     });
 
     res.json({ message: 'Reset email sent' });
-
   } catch (err) {
     next(err);
   }
@@ -400,7 +410,6 @@ app.post('/api/reset-password/:token', async (req, res) => {
       .update({ password: hash });
 
     res.json({ message: 'Password updated' });
-
   } catch (err) {
     res.status(400).json({ error: 'Invalid or expired token' });
   }
