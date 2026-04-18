@@ -1,3 +1,4 @@
+
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -19,12 +20,11 @@ const compression = require('compression');
 // ─────────────────────────────────────────
 const app = express();
 
-
 app.set('trust proxy', 1);
 
-const PORT      = process.env.PORT        || 5000;
-const SECRET    = process.env.JWT_SECRET;
-const BASE_URL  = process.env.BASE_URL    || 'https://ict-ticketing-system-production.up.railway.app';
+const PORT        = process.env.PORT        || 5000;
+const SECRET      = process.env.JWT_SECRET;
+const BASE_URL    = process.env.BASE_URL    || 'https://ict-ticketing-system-production.up.railway.app';
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'elphazshelby@gmail.com';
 
 if (!SECRET) {
@@ -73,9 +73,8 @@ app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,   // 15 minutes
+  windowMs: 15 * 60 * 1000,
   max: 200,
   standardHeaders: true,
   legacyHeaders: false,
@@ -85,10 +84,30 @@ app.use(limiter);
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20,
+  max: 5,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many attempts. Please try again in 15 minutes.' }
+});
+
+// ─────────────────────────────────────────
+//  BOT & PROBE PROTECTION
+// ─────────────────────────────────────────
+const BOT_PATHS = [
+  '/wp-admin', '/wp-login', '/wordpress', '/.env',
+  '/phpMyAdmin', '/phpmyadmin', '/admin.php',
+  '/.git', '/config', '/backup', '/shell'
+];
+
+app.use((req, res, next) => {
+  const isBotPath = BOT_PATHS.some(p =>
+    req.path.toLowerCase().startsWith(p.toLowerCase())
+  );
+  if (isBotPath) {
+    console.warn(`[BLOCKED BOT] ${req.method} ${req.path} — IP: ${req.ip}`);
+    return res.status(403).end();
+  }
+  next();
 });
 
 // ─────────────────────────────────────────
@@ -118,7 +137,7 @@ app.use(express.static('public'));
 // ─────────────────────────────────────────
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 }  // 5 MB
+  limits: { fileSize: 5 * 1024 * 1024 }
 });
 
 // ─────────────────────────────────────────
@@ -243,8 +262,6 @@ app.post('/api/register', authLimiter, async (req, res, next) => {
 app.get('/api/verify-email/:token', async (req, res) => {
   try {
     const decoded = jwt.verify(req.params.token, SECRET);
-
-    // Idempotent — safe to call multiple times
     await db.collection('users').doc(decoded.userId).update({ verified: true });
 
     res.send(`
@@ -340,9 +357,6 @@ app.post('/api/login', authLimiter, async (req, res, next) => {
       return res.status(403).json({ error: 'Email not verified. Please check your inbox.' });
     }
 
-    // FIX 5: Include `name` in the JWT payload so req.user.name is
-    // available in all downstream routes (tickets, comments, etc.).
-    // Previously name was missing, causing userName to always be ''.
     const token = jwt.sign(
       {
         id:    doc.id,
@@ -371,8 +385,6 @@ app.post('/api/login', authLimiter, async (req, res, next) => {
 // ─────────────────────────────────────────
 //  TICKETS
 // ─────────────────────────────────────────
-
-// Create ticket
 app.post('/api/tickets', auth, async (req, res, next) => {
   try {
     let { title, description, priority, category, device } = req.body;
@@ -396,7 +408,7 @@ app.post('/api/tickets', auth, async (req, res, next) => {
       status:    'open',
       userId:    req.user.id,
       userEmail: req.user.email,
-      userName:  req.user.name || '',   // now correctly populated from JWT
+      userName:  req.user.name || '',
       createdAt: admin.firestore.FieldValue.serverTimestamp()
     });
 
@@ -432,7 +444,6 @@ app.post('/api/tickets', auth, async (req, res, next) => {
   }
 });
 
-// Get tickets (users see only their own; admins see all)
 app.get('/api/tickets', auth, async (req, res, next) => {
   try {
     let query = db.collection('tickets').orderBy('createdAt', 'desc');
@@ -450,7 +461,6 @@ app.get('/api/tickets', auth, async (req, res, next) => {
   }
 });
 
-// Update ticket status (admin only)
 app.put('/api/tickets/:id', auth, isAdmin, async (req, res, next) => {
   try {
     const { status } = req.body;
@@ -509,9 +519,6 @@ app.put('/api/tickets/:id', auth, isAdmin, async (req, res, next) => {
 // ─────────────────────────────────────────
 //  COMMENTS
 // ─────────────────────────────────────────
-
-// FIX 6: GET comments was entirely missing — frontend had no way to
-// load existing comments on a ticket. Added here.
 app.get('/api/tickets/:id/comments', auth, async (req, res, next) => {
   try {
     const ticketRef  = db.collection('tickets').doc(req.params.id);
@@ -535,7 +542,6 @@ app.get('/api/tickets/:id/comments', auth, async (req, res, next) => {
   }
 });
 
-// Post a comment
 app.post('/api/tickets/:id/comments', auth, async (req, res, next) => {
   try {
     const message = req.body.message?.trim();
@@ -623,8 +629,6 @@ app.post('/api/upload/:ticketId', auth, upload.single('file'), async (req, res, 
 app.post('/api/forgot-password', authLimiter, async (req, res, next) => {
   try {
     const email = req.body.email?.toLowerCase().trim();
-
-    // Always respond 200 — never reveal whether email exists
     const genericResponse = { message: 'If that email is registered, a reset link has been sent.' };
 
     if (!email) return res.json(genericResponse);
@@ -748,7 +752,9 @@ app.get('/api/reset-password/:token', (req, res) => {
   `);
 });
 
-// RESET PASSWORD — POST (apply the change)
+// ─────────────────────────────────────────
+//  RESET PASSWORD — POST (apply the change)
+// ─────────────────────────────────────────
 app.post('/api/reset-password/:token', async (req, res, next) => {
   try {
     const decoded = jwt.verify(req.params.token, SECRET);
@@ -784,4 +790,3 @@ app.use((err, req, res, _next) => {
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
- 
