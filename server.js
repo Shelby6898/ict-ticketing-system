@@ -331,6 +331,125 @@ app.get('/api/agents', auth, isAdmin, async (req, res, next) => {
   }
 });
 
+// ─────────────────────────────────────────
+//  ASSIGN TICKET (admin only)
+// ─────────────────────────────────────────
+app.patch('/api/tickets/:id/assign', auth, isAdmin, async (req, res, next) => {
+  try {
+    const { agentId } = req.body;
+
+    if (!agentId) {
+      return res.status(400).json({ error: 'agentId is required' });
+    }
+
+    const agentDoc = await db.collection('users').doc(agentId).get();
+
+    if (!agentDoc.exists) {
+      return res.status(404).json({ error: 'Agent not found' });
+    }
+
+    const agent = agentDoc.data();
+
+    if (agent.role !== 'admin') {
+      return res.status(400).json({ error: 'User is not an admin' });
+    }
+
+    const ticketRef = db.collection('tickets').doc(req.params.id);
+    const ticketDoc = await ticketRef.get();
+
+    if (!ticketDoc.exists) {
+      return res.status(404).json({ error: 'Ticket not found' });
+    }
+
+    const ticket = ticketDoc.data();
+
+    await ticketRef.update({
+      assignedTo: agentId,
+      assignedToEmail: agent.email,
+      assignedToName: agent.name,
+      assignedAt: admin.firestore.FieldValue.serverTimestamp(),
+      status: 'assigned',
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    await sendEmail({
+      to: agent.email,
+      subject: `📋 New Ticket Assigned: ${ticket.title}`,
+      html: `
+        <h2>You have been assigned a new ticket</h2>
+        <p><strong>Title:</strong> ${ticket.title}</p>
+        <p><strong>Priority:</strong> ${ticket.priority || 'medium'}</p>
+        <p><strong>Submitted by:</strong> ${ticket.userEmail}</p>
+        <a href="${BASE_URL}">Open HelpDesk</a>
+      `
+    });
+
+    res.json({
+      message: 'Ticket assigned successfully',
+      assignedTo: { id: agentId, name: agent.name, email: agent.email }
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─────────────────────────────────────────
+//  UNASSIGN TICKET (admin only)
+// ─────────────────────────────────────────
+app.patch('/api/tickets/:id/unassign', auth, isAdmin, async (req, res, next) => {
+  try {
+    const ticketRef = db.collection('tickets').doc(req.params.id);
+    const ticketDoc = await ticketRef.get();
+
+    if (!ticketDoc.exists) {
+      return res.status(404).json({ error: 'Ticket not found' });
+    }
+
+    await ticketRef.update({
+      assignedTo: null,
+      assignedToEmail: null,
+      assignedToName: null,
+      assignedAt: null,
+      status: 'open',
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    res.json({ message: 'Ticket unassigned' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─────────────────────────────────────────
+//  UPDATE STATUS (admin only)
+// ─────────────────────────────────────────
+app.patch('/api/tickets/:id/status', auth, isAdmin, async (req, res, next) => {
+  try {
+    const { status } = req.body;
+    const validStatuses = ['open', 'assigned', 'in_progress', 'in-progress', 'resolved', 'closed'];
+
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+
+    const ticketRef = db.collection('tickets').doc(req.params.id);
+    const ticketDoc = await ticketRef.get();
+
+    if (!ticketDoc.exists) {
+      return res.status(404).json({ error: 'Ticket not found' });
+    }
+
+    await ticketRef.update({
+      status,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    res.json({ message: 'Status updated', status });
+  } catch (err) {
+    next(err);
+  }
+});
+
 
 // ─────────────────────────────────────────
 //  ERROR HANDLER
