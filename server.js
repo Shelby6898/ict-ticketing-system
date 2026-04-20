@@ -60,7 +60,6 @@ admin.initializeApp({
 
 const db = admin.firestore();
 
-
 // ─────────────────────────────────────────
 //  EMAIL (RESEND)
 // ─────────────────────────────────────────
@@ -213,6 +212,7 @@ app.post('/api/register', authLimiter, async (req, res, next) => {
       createdAt: admin.firestore.FieldValue.serverTimestamp()
     });
 
+    // FIX: use consistent field name 'userId' in the token
     const token = jwt.sign(
       { userId: userRef.id, email: cleanEmail },
       SECRET,
@@ -223,11 +223,83 @@ app.post('/api/register', authLimiter, async (req, res, next) => {
 
     await sendEmail({
       to: cleanEmail,
-      subject: 'Verify Account',
-      html: `<p>Click to verify: <a href="${link}">Verify</a></p>`
+      subject: 'Verify Your Account – ICT HelpDesk',
+      html: `
+        <p>Hi ${name},</p>
+        <p>Thanks for registering. Please verify your email address by clicking the button below:</p>
+        <a href="${link}" style="display:inline-block;padding:10px 20px;background:#0070f3;color:#fff;border-radius:5px;text-decoration:none;">Verify Email</a>
+        <p>This link expires in 24 hours.</p>
+        <p>If you did not register, you can safely ignore this email.</p>
+      `
     });
 
-    res.json({ message: 'Registered successfully' });
+    res.json({ message: 'Registered successfully. Please check your email to verify your account.' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─────────────────────────────────────────
+//  VERIFY EMAIL  ← FIX: this route was missing
+// ─────────────────────────────────────────
+app.get('/api/verify-email/:token', async (req, res, next) => {
+  try {
+    const { token } = req.params;
+
+    // Decode and verify the JWT
+    let payload;
+    try {
+      payload = jwt.verify(token, SECRET);
+    } catch (err) {
+      return res.status(400).send(`
+        <html><body style="font-family:sans-serif;text-align:center;padding:60px;">
+          <h2>❌ Verification link is invalid or has expired.</h2>
+          <p>Please register again or request a new verification email.</p>
+        </body></html>
+      `);
+    }
+
+    const { userId, email } = payload;
+
+    if (!userId) {
+      return res.status(400).send(`
+        <html><body style="font-family:sans-serif;text-align:center;padding:60px;">
+          <h2>❌ Invalid verification token.</h2>
+        </body></html>
+      `);
+    }
+
+    // Find the user by ID
+    const userRef = db.collection('users').doc(userId);
+    const userDoc = await userRef.get();
+
+    if (!userDoc.exists) {
+      return res.status(404).send(`
+        <html><body style="font-family:sans-serif;text-align:center;padding:60px;">
+          <h2>❌ User not found.</h2>
+        </body></html>
+      `);
+    }
+
+    if (userDoc.data().verified) {
+      return res.send(`
+        <html><body style="font-family:sans-serif;text-align:center;padding:60px;">
+          <h2>✅ Email already verified.</h2>
+          <p>You can <a href="${BASE_URL}">log in here</a>.</p>
+        </body></html>
+      `);
+    }
+
+    // Mark user as verified
+    await userRef.update({ verified: true });
+
+    // Redirect to frontend (or show success page)
+    res.send(`
+      <html><body style="font-family:sans-serif;text-align:center;padding:60px;">
+        <h2>✅ Email verified successfully!</h2>
+        <p>Your account is now active. <a href="${BASE_URL}">Click here to log in</a>.</p>
+      </body></html>
+    `);
   } catch (err) {
     next(err);
   }
@@ -259,6 +331,14 @@ app.post('/api/login', authLimiter, async (req, res, next) => {
       return res.status(401).json({ error: 'Invalid login' });
     }
 
+    // FIX: block unverified users from logging in
+    if (!user.verified) {
+      return res.status(403).json({
+        error: 'Please verify your email before logging in. Check your inbox.'
+      });
+    }
+
+    // FIX: use consistent field name 'id' in login token (matches auth middleware usage)
     const token = jwt.sign(
       { id: doc.id, email: user.email, role: user.role },
       SECRET,
@@ -449,7 +529,6 @@ app.patch('/api/tickets/:id/status', auth, isAdmin, async (req, res, next) => {
     next(err);
   }
 });
-
 
 // ─────────────────────────────────────────
 //  ERROR HANDLER
