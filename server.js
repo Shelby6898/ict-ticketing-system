@@ -104,7 +104,7 @@ app.use(
   rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 200,
-    message: { error: 'Too many requests' }
+    message: { error: 'Too many requests' } // ← FIXED syntax error
   })
 );
 
@@ -212,7 +212,6 @@ app.post('/api/register', authLimiter, async (req, res, next) => {
       createdAt: admin.firestore.FieldValue.serverTimestamp()
     });
 
-    // FIX: use consistent field name 'userId' in the token
     const token = jwt.sign(
       { userId: userRef.id, email: cleanEmail },
       SECRET,
@@ -240,13 +239,12 @@ app.post('/api/register', authLimiter, async (req, res, next) => {
 });
 
 // ─────────────────────────────────────────
-//  VERIFY EMAIL  ← FIX: this route was missing
+//  VERIFY EMAIL
 // ─────────────────────────────────────────
 app.get('/api/verify-email/:token', async (req, res, next) => {
   try {
     const { token } = req.params;
 
-    // Decode and verify the JWT
     let payload;
     try {
       payload = jwt.verify(token, SECRET);
@@ -259,7 +257,7 @@ app.get('/api/verify-email/:token', async (req, res, next) => {
       `);
     }
 
-    const { userId, email } = payload;
+    const { userId } = payload;
 
     if (!userId) {
       return res.status(400).send(`
@@ -269,7 +267,6 @@ app.get('/api/verify-email/:token', async (req, res, next) => {
       `);
     }
 
-    // Find the user by ID
     const userRef = db.collection('users').doc(userId);
     const userDoc = await userRef.get();
 
@@ -290,10 +287,8 @@ app.get('/api/verify-email/:token', async (req, res, next) => {
       `);
     }
 
-    // Mark user as verified
     await userRef.update({ verified: true });
 
-    // Redirect to frontend (or show success page)
     res.send(`
       <html><body style="font-family:sans-serif;text-align:center;padding:60px;">
         <h2>✅ Email verified successfully!</h2>
@@ -331,39 +326,56 @@ app.post('/api/login', authLimiter, async (req, res, next) => {
       return res.status(401).json({ error: 'Invalid login' });
     }
 
-    // FIX: block unverified users from logging in
     if (!user.verified) {
       return res.status(403).json({
         error: 'Please verify your email before logging in. Check your inbox.'
       });
     }
 
-    // FIX: use consistent field name 'id' in login token (matches auth middleware usage)
     const token = jwt.sign(
-      { id: doc.id, email: user.email, role: user.role },
+      { id: doc.id, email: user.email, role: user.role, name: user.name },
       SECRET,
       { expiresIn: '1d' }
     );
 
-    res.json({ token, user: { id: doc.id, email: user.email, role: user.role } });
+    res.json({ token, user: { id: doc.id, name: user.name, email: user.email, role: user.role } });
   } catch (err) {
     next(err);
   }
 });
 
 // ─────────────────────────────────────────
-//  TICKETS (CORE)
+//  CREATE TICKET  ← FIXED: saves all fields
 // ─────────────────────────────────────────
 app.post('/api/tickets', auth, async (req, res, next) => {
   try {
-    const { title, description } = req.body;
+    const { title, description, category, priority } = req.body;
+
+    if (!title || !description) {
+      return res.status(400).json({ error: 'Title and description are required' });
+    }
+
+    // Fetch user's name from Firestore to store as requester
+    const userDoc = await db.collection('users').doc(req.user.id).get();
+    const requesterName = userDoc.exists ? userDoc.data().name : req.user.email;
+
+    const validCategories = ['hardware', 'software', 'network', 'account', 'other'];
+    const validPriorities = ['low', 'medium', 'high', 'urgent'];
 
     const doc = await db.collection('tickets').add({
       title,
       description,
+      category: validCategories.includes(category) ? category : 'other',
+      priority: validPriorities.includes(priority) ? priority : 'medium',
+      requester: requesterName,
+      userEmail: req.user.email,
       status: 'open',
       userId: req.user.id,
-      createdAt: admin.firestore.FieldValue.serverTimestamp()
+      assignedTo: null,
+      assignedToName: null,
+      assignedToEmail: null,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
     });
 
     res.json({ id: doc.id });
@@ -372,6 +384,9 @@ app.post('/api/tickets', auth, async (req, res, next) => {
   }
 });
 
+// ─────────────────────────────────────────
+//  GET TICKETS
+// ─────────────────────────────────────────
 app.get('/api/tickets', auth, async (req, res, next) => {
   try {
     let query = db.collection('tickets').orderBy('createdAt', 'desc');
@@ -381,7 +396,18 @@ app.get('/api/tickets', auth, async (req, res, next) => {
     }
 
     const snap = await query.get();
-    const tickets = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const tickets = snap.docs.map(d => {
+      const data = d.data();
+      return {
+        id: d.id,
+        ...data,
+        // Ensure these fields always exist even on old tickets
+        requester: data.requester || data.userEmail || 'Unknown',
+        category: data.category || 'other',
+        priority: data.priority || 'medium',
+        userEmail: data.userEmail || ''
+      };
+    });
 
     res.json({ tickets });
   } catch (err) {
@@ -458,8 +484,9 @@ app.patch('/api/tickets/:id/assign', auth, isAdmin, async (req, res, next) => {
       html: `
         <h2>You have been assigned a new ticket</h2>
         <p><strong>Title:</strong> ${ticket.title}</p>
+        <p><strong>Category:</strong> ${ticket.category || 'other'}</p>
         <p><strong>Priority:</strong> ${ticket.priority || 'medium'}</p>
-        <p><strong>Submitted by:</strong> ${ticket.userEmail}</p>
+        <p><strong>Submitted by:</strong> ${ticket.requester || ticket.userEmail || 'Unknown'}</p>
         <a href="${BASE_URL}">Open HelpDesk</a>
       `
     });
@@ -525,6 +552,46 @@ app.patch('/api/tickets/:id/status', auth, isAdmin, async (req, res, next) => {
     });
 
     res.json({ message: 'Status updated', status });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─────────────────────────────────────────
+//  UPDATE TICKET FIELDS (admin only)
+// ─────────────────────────────────────────
+app.patch('/api/tickets/:id', auth, isAdmin, async (req, res, next) => {
+  try {
+    const { category, priority } = req.body;
+    const validCategories = ['hardware', 'software', 'network', 'account', 'other'];
+    const validPriorities = ['low', 'medium', 'high', 'urgent'];
+
+    const updates = { updatedAt: admin.firestore.FieldValue.serverTimestamp() };
+
+    if (category) {
+      if (!validCategories.includes(category)) {
+        return res.status(400).json({ error: 'Invalid category' });
+      }
+      updates.category = category;
+    }
+
+    if (priority) {
+      if (!validPriorities.includes(priority)) {
+        return res.status(400).json({ error: 'Invalid priority' });
+      }
+      updates.priority = priority;
+    }
+
+    const ticketRef = db.collection('tickets').doc(req.params.id);
+    const ticketDoc = await ticketRef.get();
+
+    if (!ticketDoc.exists) {
+      return res.status(404).json({ error: 'Ticket not found' });
+    }
+
+    await ticketRef.update(updates);
+
+    res.json({ message: 'Ticket updated', ...updates });
   } catch (err) {
     next(err);
   }
