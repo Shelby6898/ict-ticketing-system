@@ -383,6 +383,19 @@ td{padding:13px 16px;font-size:13px;vertical-align:middle;}
   </div>
 </div>
 
+<div class="modal-overlay" id="resetPasswordModal">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <span class="modal-title">🔑 Reset Password</span>
+      <button class="modal-close" onclick="closeModal('resetPasswordModal')">✕</button>
+    </div>
+    <div class="err-msg" id="resetPassErr"></div>
+    <p style="color:var(--text2);font-size:13px;margin-bottom:20px;">Setting new password for <strong id="resetUserName"></strong></p>
+    <div class="field"><label>New Password</label><input type="password" id="resetNewPass" placeholder="Min 8 characters"/></div>
+    <div class="field"><label>Confirm Password</label><input type="password" id="resetConfirmPass" placeholder="Repeat new password"/></div>
+    <button class="btn btn-primary" onclick="resetPassword()" id="resetPassBtn">Reset Password</button>
+  </div>
+</div>
 <div id="toast"></div>
 
 <script>
@@ -629,6 +642,41 @@ async function deleteTicket(id){
   updateStats();renderAdminTable();toast('Ticket deleted.');
 }
 
+
+let resetTargetId = null;
+
+function openResetModal(id, name) {
+  resetTargetId = id;
+  document.getElementById("resetUserName").textContent = name;
+  document.getElementById("resetNewPass").value = "";
+  document.getElementById("resetConfirmPass").value = "";
+  openModal("resetPasswordModal");
+}
+
+async function resetPassword() {
+  const newPass = document.getElementById("resetNewPass").value;
+  const confirmPass = document.getElementById("resetConfirmPass").value;
+  if (!newPass || !confirmPass) return showErr("resetPassErr", "Both fields are required.");
+  if (newPass.length < 8) return showErr("resetPassErr", "Password must be at least 8 characters.");
+  if (newPass !== confirmPass) return showErr("resetPassErr", "Passwords do not match.");
+  setLoading("resetPassBtn", true);
+  try {
+    const r = await fetch(API + "/auth/users/" + resetTargetId + "/reset-password", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+      body: JSON.stringify({ newPassword: newPass })
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || "Reset failed.");
+    closeModal("resetPasswordModal");
+    toast("Password reset! User notified by email.");
+  } catch(e) {
+    showErr("resetPassErr", e.message);
+  } finally {
+    setLoading("resetPassBtn", false);
+  }
+}
+
 async function loadUsers(){
   const tbody=document.getElementById('usersTbody');
   tbody.innerHTML=`<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--text3);">Loading…</td></tr>`;
@@ -642,7 +690,7 @@ async function loadUsers(){
         <td style="font-weight:500;">${u.name}</td>
         <td style="font-size:12px;color:var(--text2);">${u.email}</td>
         <td>${u.role==='admin'?'<span class="badge badge-assigned">Admin</span>':'<span class="badge badge-other">User</span>'}</td>
-        <td><div class="actions">${u.id!==currentUser.id?`<button class="btn btn-danger btn-sm" onclick="deleteUser('${u.id}','${u.name}')">🗑 Delete</button>`:'<span style="font-size:11px;color:var(--text3)">You</span>'}</div></td>
+        <td><div class="actions">${u.id!==currentUser.id?`<button class="btn btn-ghost btn-sm" onclick="openResetModal('${u.id}','${u.name}')">🔑 Reset</button><button class="btn btn-danger btn-sm" onclick="deleteUser('${u.id}','${u.name}')">🗑 Delete</button>`:'<span style="font-size:11px;color:var(--text3)">You</span>'}</div></td>
       </tr>
     `).join('');
   }catch(e){tbody.innerHTML=`<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--danger);">Failed to load users.</td></tr>`;}
@@ -679,6 +727,7 @@ async function deleteUser(id,name){
     toast(`User "${name}" deleted.`);loadUsers();
   }catch(e){toast('❌ '+e.message,'error');}
 }
+
 
 window.onload=()=>{if(token&&currentUser)initSession();};
 
