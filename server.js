@@ -53,6 +53,7 @@ app.get('/', (req, res) => {
 app.use('/api/auth',    require('./routes/auth'));
 app.use('/api/tickets', require('./routes/tickets'));
 app.use('/api',         require('./routes/admin'));
+app.use('/api/export',  require('./routes/export'));
 
 app.use((err, req, res, _next) => {
   console.error('[ERROR]', err.message || err);
