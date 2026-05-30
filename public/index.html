@@ -400,6 +400,20 @@ td{padding:13px 16px;font-size:13px;vertical-align:middle;}
     <button class="btn btn-primary" onclick="resetPassword()" id="resetPassBtn">Reset Password</button>
   </div>
 </div>
+
+<!-- TICKET DETAIL MODAL -->
+<div class="modal-overlay" id="ticketDetailModal">
+  <div class="modal" style="max-width:560px;max-height:90vh;overflow-y:auto;">
+    <div class="modal-header">
+      <span class="modal-title">🎫 Ticket Details</span>
+      <button class="modal-close" onclick="closeModal('ticketDetailModal')">✕</button>
+    </div>
+    <div id="ticketDetailBody">
+      <div style="text-align:center;padding:24px;color:var(--text3);">Loading…</div>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -552,11 +566,54 @@ function clearForm(){
   document.getElementById('ticketPriority').value='medium';
 }
 
+
+// ── USER TICKET DETAIL ──
+let userTickets = [];
+
+async function openUserTicketDetail(ticketId) {
+  const ticket = userTickets.find(t => t.id === ticketId);
+  if (!ticket) return;
+
+  openModal('ticketDetailModal');
+
+  document.getElementById('ticketDetailBody').innerHTML = `
+    <div style="margin-bottom:20px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+        ${statusBadge(ticket.status)}
+        ${priorityBadge(ticket.priority)}
+        ${categoryBadge(ticket.category)}
+      </div>
+      <h3 style="font-size:17px;font-weight:700;margin-bottom:8px;">${ticket.title}</h3>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:4px;">
+        <strong>Device:</strong> ${ticket.device || '—'}
+      </div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:12px;">
+        <strong>Submitted:</strong> ${fmtDate(ticket.createdAt)}
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px;font-size:13px;line-height:1.6;color:var(--text2);">
+        ${ticket.description || '—'}
+      </div>
+    </div>
+    <div style="height:1px;background:var(--border);margin:16px 0;"></div>
+    <h4 style="font-size:14px;font-weight:600;margin-bottom:14px;">💬 Comments</h4>
+    <div id="commentsList" style="margin-bottom:16px;max-height:200px;overflow-y:auto;">
+      <div style="text-align:center;padding:16px;color:var(--text3);font-size:13px;">Loading comments…</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:flex-end;">
+      <textarea id="commentInput" placeholder="Type your message…"
+        style="flex:1;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:10px 12px;color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:13px;outline:none;resize:none;min-height:70px;line-height:1.5;"></textarea>
+      <button class="btn btn-primary btn-sm" onclick="submitComment('${ticketId}')" id="commentBtn" style="width:auto;padding:10px 16px;align-self:flex-end;">Send</button>
+    </div>
+  `;
+
+  loadComments(ticketId);
+}
+
 async function loadMyTickets(){
   try{
     const r=await fetch(`${API}/tickets`,{headers:{Authorization:'Bearer '+token}});
     const data=await r.json();
-    if(r.ok){renderMyTickets(data.tickets);return;}
+    if(r.ok){userTickets=data.tickets;renderMyTickets(data.tickets);return;}
   }catch(e){}
   renderMyTickets([]);
 }
@@ -567,7 +624,7 @@ function renderMyTickets(tickets=[]){
   const tbody=document.getElementById('myTicketsTbody');
   if(!tickets.length){tbody.innerHTML=`<tr><td colspan="7"><div class="empty-state"><span class="empty-icon">🎫</span><p>No tickets yet — submit one above.</p></div></td></tr>`;return;}
   tbody.innerHTML=tickets.map(t=>`
-    <tr>
+    <tr onclick="openUserTicketDetail('${t.id}')" style="cursor:pointer;">
       <td><span class="ticket-id">${t.id}</span></td>
       <td><div class="ticket-title-cell">${t.title}<small>${t.device||''}</small></div></td>
       <td>${categoryBadge(t.category)}</td>
@@ -610,6 +667,113 @@ function exportTickets(format) {
       toast(`${format.toUpperCase()} exported successfully!`);
     })
     .catch(e => toast('Export failed: ' + e.message, 'error'));
+}
+
+
+// ── TICKET DETAIL & COMMENTS ──
+let activeTicketId = null;
+
+async function openTicketDetail(ticketId) {
+  activeTicketId = ticketId;
+  openModal('ticketDetailModal');
+  const ticket = allTickets.find(t => t.id === ticketId);
+  if (!ticket) return;
+
+  document.getElementById('ticketDetailBody').innerHTML = `
+    <div style="margin-bottom:20px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+        ${statusBadge(ticket.status)}
+        ${priorityBadge(ticket.priority)}
+        ${categoryBadge(ticket.category)}
+      </div>
+      <h3 style="font-size:17px;font-weight:700;margin-bottom:8px;">${ticket.title}</h3>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:4px;">
+        <strong>Submitted by:</strong> ${ticket.userName || ticket.requester || '—'} (${ticket.userEmail || ''})
+      </div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:4px;">
+        <strong>Device:</strong> ${ticket.device || '—'}
+      </div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:12px;">
+        <strong>Date:</strong> ${fmtDate(ticket.createdAt)}
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px;font-size:13px;line-height:1.6;color:var(--text2);">
+        ${ticket.description || '—'}
+      </div>
+    </div>
+    <div style="height:1px;background:var(--border);margin:16px 0;"></div>
+    <h4 style="font-size:14px;font-weight:600;margin-bottom:14px;">💬 Comments</h4>
+    <div id="commentsList" style="margin-bottom:16px;">
+      <div style="text-align:center;padding:16px;color:var(--text3);font-size:13px;">Loading comments…</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:flex-end;">
+      <textarea id="commentInput" placeholder="Type your reply…"
+        style="flex:1;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:10px 12px;color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:13px;outline:none;resize:none;min-height:70px;line-height:1.5;"></textarea>
+      <button class="btn btn-primary btn-sm" onclick="submitComment('${ticketId}')" id="commentBtn" style="width:auto;padding:10px 16px;align-self:flex-end;">Send</button>
+    </div>
+  `;
+
+  loadComments(ticketId);
+}
+
+async function loadComments(ticketId) {
+  try {
+    const r = await fetch(`${API}/tickets/${ticketId}/comments`, {
+      headers: { Authorization: 'Bearer ' + token }
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error);
+    renderComments(data.comments);
+  } catch(e) {
+    document.getElementById('commentsList').innerHTML =
+      `<div style="color:var(--danger);font-size:13px;">Failed to load comments.</div>`;
+  }
+}
+
+function renderComments(comments) {
+  const el = document.getElementById('commentsList');
+  if (!comments.length) {
+    el.innerHTML = `<div style="text-align:center;padding:16px;color:var(--text3);font-size:13px;">No comments yet. Be the first to reply!</div>`;
+    return;
+  }
+  el.innerHTML = comments.map(c => {
+    const isAdmin = c.authorRole === 'admin';
+    return `
+      <div style="margin-bottom:12px;display:flex;flex-direction:column;align-items:${isAdmin ? 'flex-end' : 'flex-start'};">
+        <div style="max-width:85%;background:${isAdmin ? 'rgba(99,102,241,0.12)' : 'var(--surface2)'};border:1px solid ${isAdmin ? 'rgba(99,102,241,0.25)' : 'var(--border)'};border-radius:12px;padding:10px 14px;">
+          <div style="font-size:11px;font-weight:600;color:${isAdmin ? 'var(--accent2)' : 'var(--cyan)'};margin-bottom:4px;">
+            ${isAdmin ? '🛡️ ' : '👤 '}${c.authorName}
+          </div>
+          <div style="font-size:13px;color:var(--text);line-height:1.5;">${c.message}</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:6px;">${fmtDate(c.createdAt)}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+async function submitComment(ticketId) {
+  const input = document.getElementById('commentInput');
+  const message = input?.value?.trim();
+  if (!message) return toast('Please type a message.', 'error');
+
+  setLoading('commentBtn', true);
+  try {
+    const r = await fetch(`${API}/tickets/${ticketId}/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ message })
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Failed to send.');
+    input.value = '';
+    loadComments(ticketId);
+    toast('Reply sent!');
+  } catch(e) {
+    toast('❌ ' + e.message, 'error');
+  } finally {
+    setLoading('commentBtn', false);
+  }
 }
 
 async function loadAdminTickets(){
@@ -656,7 +820,7 @@ function renderAdminTable(){
       </td>
       <td>${buildAssignDropdown(t)}</td>
       <td style="font-size:11px;color:var(--text2);white-space:nowrap;">${fmtDate(t.createdAt)}</td>
-      <td><div class="actions"><button class="btn btn-danger btn-sm" onclick="deleteTicket('${t.id}')">🗑</button></div></td>
+      <td><div class="actions"><button class="btn btn-ghost btn-sm" onclick="openTicketDetail('${t.id}')">💬</button><button class="btn btn-danger btn-sm" onclick="deleteTicket('${t.id}')">🗑</button></div></td>
     </tr>
   `).join('');
 }
