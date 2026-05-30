@@ -39,20 +39,79 @@ router.post('/', auth, async (req, res, next) => {
     if (!title || !description) {
       return res.status(400).json({ error: 'title and description are required.' });
     }
+
     const userDoc = await db.collection('users').doc(req.user.id).get();
     const requesterName = userDoc.exists ? userDoc.data().name : req.user.email;
 
+    const finalCategory = VALID_CATEGORIES.includes(category) ? category : 'other';
+    const finalPriority = VALID_PRIORITIES.includes(priority) ? priority : 'medium';
+
     const docRef = await db.collection('tickets').add({
       title, description, device: device || '',
-      category:  VALID_CATEGORIES.includes(category) ? category : 'other',
-      priority:  VALID_PRIORITIES.includes(priority) ? priority : 'medium',
-      requester: requesterName, userName: requesterName,
-      userEmail: req.user.email, userId: req.user.id,
-      status: 'open',
+      category:  finalCategory,
+      priority:  finalPriority,
+      requester: requesterName,
+      userName:  requesterName,
+      userEmail: req.user.email,
+      userId:    req.user.id,
+      status:    'open',
       assignedTo: null, assignedToName: null, assignedToEmail: null,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp()
     });
+
+    // ── 1. Confirmation email to the user ──
+    await sendEmail({
+      to: req.user.email,
+      subject: `✅ Ticket Received: ${title}`,
+      html: `
+        <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;">
+          <h2 style="color:#6366f1;">ICT HelpDesk</h2>
+          <p>Hi ${requesterName},</p>
+          <p>Your ticket has been received and our ICT team will get back to you shortly.</p>
+          <div style="background:#f1f5f9;border-radius:8px;padding:16px;margin:20px 0;">
+            <p style="margin:0 0 8px;"><strong>Ticket ID:</strong> ${docRef.id}</p>
+            <p style="margin:0 0 8px;"><strong>Title:</strong> ${title}</p>
+            <p style="margin:0 0 8px;"><strong>Category:</strong> ${finalCategory}</p>
+            <p style="margin:0 0 8px;"><strong>Priority:</strong> ${finalPriority}</p>
+            <p style="margin:0;"><strong>Device:</strong> ${device || '—'}</p>
+          </div>
+          <p style="color:#64748b;font-size:13px;">You will be notified when your ticket is updated.</p>
+          <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;"/>
+          <p style="color:#94a3b8;font-size:12px;">ICT HelpDesk — ${process.env.BASE_URL}</p>
+        </div>
+      `
+    });
+
+    // ── 2. Notification email to all admins ──
+    const adminsSnap = await db.collection('users').where('role', '==', 'admin').get();
+    const adminEmails = adminsSnap.docs.map(d => d.data().email);
+
+    if (adminEmails.length) {
+      await sendEmail({
+        to: adminEmails,
+        subject: `🎫 New Ticket: ${title}`,
+        html: `
+          <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;">
+            <h2 style="color:#ef4444;">ICT HelpDesk — New Ticket</h2>
+            <p>A new support ticket has been submitted.</p>
+            <div style="background:#f1f5f9;border-radius:8px;padding:16px;margin:20px 0;">
+              <p style="margin:0 0 8px;"><strong>Ticket ID:</strong> ${docRef.id}</p>
+              <p style="margin:0 0 8px;"><strong>Title:</strong> ${title}</p>
+              <p style="margin:0 0 8px;"><strong>Submitted by:</strong> ${requesterName} (${req.user.email})</p>
+              <p style="margin:0 0 8px;"><strong>Category:</strong> ${finalCategory}</p>
+              <p style="margin:0 0 8px;"><strong>Priority:</strong> ${finalPriority}</p>
+              <p style="margin:0 0 8px;"><strong>Device:</strong> ${device || '—'}</p>
+              <p style="margin:0;"><strong>Description:</strong> ${description}</p>
+            </div>
+            <a href="${process.env.BASE_URL}" style="display:inline-block;padding:10px 20px;background:#6366f1;color:#fff;border-radius:6px;text-decoration:none;font-weight:600;">Open HelpDesk →</a>
+            <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;"/>
+            <p style="color:#94a3b8;font-size:12px;">ICT HelpDesk — ${process.env.BASE_URL}</p>
+          </div>
+        `
+      });
+    }
+
     res.status(201).json({ id: docRef.id, message: 'Ticket created.' });
   } catch (err) { next(err); }
 });
@@ -67,7 +126,33 @@ router.patch('/:id/status', auth, isAdmin, async (req, res, next) => {
     const ref = db.collection('tickets').doc(req.params.id);
     const doc = await ref.get();
     if (!doc.exists) return res.status(404).json({ error: 'Ticket not found.' });
+
+    const ticket = doc.data();
+
     await ref.update({ status, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+
+    // ── Notify user when status changes ──
+    if (ticket.userEmail) {
+      await sendEmail({
+        to: ticket.userEmail,
+        subject: `🔄 Ticket Update: ${ticket.title}`,
+        html: `
+          <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;">
+            <h2 style="color:#6366f1;">ICT HelpDesk</h2>
+            <p>Hi ${ticket.userName || ticket.requester || 'there'},</p>
+            <p>Your ticket status has been updated.</p>
+            <div style="background:#f1f5f9;border-radius:8px;padding:16px;margin:20px 0;">
+              <p style="margin:0 0 8px;"><strong>Ticket:</strong> ${ticket.title}</p>
+              <p style="margin:0;"><strong>New Status:</strong> <span style="color:#6366f1;font-weight:600;">${status}</span></p>
+            </div>
+            <a href="${process.env.BASE_URL}" style="display:inline-block;padding:10px 20px;background:#6366f1;color:#fff;border-radius:6px;text-decoration:none;font-weight:600;">View Ticket →</a>
+            <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;"/>
+            <p style="color:#94a3b8;font-size:12px;">ICT HelpDesk — ${process.env.BASE_URL}</p>
+          </div>
+        `
+      });
+    }
+
     res.json({ message: 'Status updated.', status });
   } catch (err) { next(err); }
 });
@@ -92,15 +177,30 @@ router.patch('/:id/assign', auth, isAdmin, async (req, res, next) => {
       assignedAt: admin.firestore.FieldValue.serverTimestamp(),
       status: 'assigned', updatedAt: admin.firestore.FieldValue.serverTimestamp()
     });
+
+    // ── Notify assigned admin ──
     await sendEmail({
       to: agent.email,
-      subject: `Ticket Assigned: ${ticket.title}`,
-      html: `<h2>You have been assigned a ticket</h2>
-             <p><strong>Title:</strong> ${ticket.title}</p>
-             <p><strong>Priority:</strong> ${ticket.priority || 'medium'}</p>
-             <p><strong>Submitted by:</strong> ${ticket.requester || ticket.userEmail}</p>
-             <a href="${process.env.BASE_URL}">Open HelpDesk</a>`
+      subject: `📋 Ticket Assigned to You: ${ticket.title}`,
+      html: `
+        <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;">
+          <h2 style="color:#6366f1;">ICT HelpDesk</h2>
+          <p>Hi ${agent.name},</p>
+          <p>A ticket has been assigned to you.</p>
+          <div style="background:#f1f5f9;border-radius:8px;padding:16px;margin:20px 0;">
+            <p style="margin:0 0 8px;"><strong>Ticket ID:</strong> ${req.params.id}</p>
+            <p style="margin:0 0 8px;"><strong>Title:</strong> ${ticket.title}</p>
+            <p style="margin:0 0 8px;"><strong>Submitted by:</strong> ${ticket.requester || ticket.userEmail}</p>
+            <p style="margin:0 0 8px;"><strong>Category:</strong> ${ticket.category || 'other'}</p>
+            <p style="margin:0;"><strong>Priority:</strong> ${ticket.priority || 'medium'}</p>
+          </div>
+          <a href="${process.env.BASE_URL}" style="display:inline-block;padding:10px 20px;background:#6366f1;color:#fff;border-radius:6px;text-decoration:none;font-weight:600;">Open HelpDesk →</a>
+          <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;"/>
+          <p style="color:#94a3b8;font-size:12px;">ICT HelpDesk — ${process.env.BASE_URL}</p>
+        </div>
+      `
     });
+
     res.json({ message: 'Ticket assigned.', assignedTo: { id: agentId, name: agent.name, email: agent.email } });
   } catch (err) { next(err); }
 });
