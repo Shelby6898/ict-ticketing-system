@@ -519,9 +519,11 @@ function updateAdminBranding(){
   const icon=document.getElementById('adminBrandIcon');
   const topNavUsersBtn=document.getElementById('topNavUsersBtn');
   const navUsers=document.getElementById('navUsers');
+  const filterDeptSel=document.getElementById('filterDepartment');
   const isSuperAdmin=currentUser&&currentUser.role==='superadmin';
   if(topNavUsersBtn)topNavUsersBtn.style.display=isSuperAdmin?'':'none';
   if(navUsers)navUsers.style.display=isSuperAdmin?'':'none';
+  if(filterDeptSel)filterDeptSel.style.display=isSuperAdmin?'':'none';
   if(!label||!currentUser)return;
   if(currentUser.role==='superadmin'||!currentUser.department){
     label.textContent='University';
