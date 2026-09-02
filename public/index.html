@@ -183,8 +183,8 @@ td{padding:13px 16px;font-size:13px;vertical-align:middle;}
   <div class="auth-grid-bg"></div>
   <div class="auth-card">
     <div class="auth-logo">
-      <div class="logo-mark">🖥️</div>
-      <div class="logo-text">ICT <span>HelpDesk</span></div>
+      <div class="logo-mark">🎓</div>
+      <div class="logo-text">University <span>HelpDesk</span></div>
     </div>
     <h2 class="auth-heading">Welcome back</h2>
     <p class="auth-sub">Sign in to your workspace to continue</p>
@@ -199,8 +199,8 @@ td{padding:13px 16px;font-size:13px;vertical-align:middle;}
 <div id="userScreen" class="screen">
   <div class="topbar">
     <div class="topbar-brand">
-      <div class="logo-mark" style="width:32px;height:32px;font-size:14px;border-radius:8px;">🖥️</div>
-      ICT <span class="brand-dot">·</span> HelpDesk
+      <div class="logo-mark" style="width:32px;height:32px;font-size:14px;border-radius:8px;">🎓</div>
+      University <span class="brand-dot">·</span> HelpDesk
     </div>
     <div class="topbar-right">
       <div class="user-chip">
@@ -213,20 +213,24 @@ td{padding:13px 16px;font-size:13px;vertical-align:middle;}
   <div class="user-content">
     <div class="page-header">
       <h1 class="page-title">Submit a Ticket</h1>
-      <p class="page-sub">Describe your issue and our ICT team will respond promptly</p>
+      <p class="page-sub" id="ticketPageSub">Describe your issue and the relevant department will respond promptly</p>
     </div>
     <div class="ticket-form">
       <div class="form-section-label">Issue details</div>
       <div class="form-row">
+        <div class="field">
+          <label>Department</label>
+          <select id="ticketDepartment" onchange="onDepartmentChange()">
+            <option value="">Select a department</option>
+          </select>
+        </div>
         <div class="field"><label>Issue title</label><input type="text" id="ticketTitle" placeholder="Brief summary of the issue"/></div>
+      </div>
+      <div class="form-row">
         <div class="field">
           <label>Category</label>
           <select id="ticketCategory">
-            <option value="">Select a category</option>
-            <option value="hardware">🖥️ Hardware</option>
-            <option value="software">💾 Software</option>
-            <option value="network">🌐 Network</option>
-            <option value="other">📋 Other</option>
+            <option value="">Select a department first</option>
           </select>
         </div>
       </div>
@@ -239,9 +243,9 @@ td{padding:13px 16px;font-size:13px;vertical-align:middle;}
             <option value="high">🔴 High</option>
           </select>
         </div>
-        <div class="field"><label>Affected device / system</label><input type="text" id="ticketDevice" placeholder="e.g. Dell Laptop, HP Printer"/></div>
+        <div class="field"><label id="ticketDeviceLabel">Reference / Affected Item</label><input type="text" id="ticketDevice" placeholder="Optional reference"/></div>
       </div>
-      <div class="field"><label>Description</label><textarea id="ticketDesc" placeholder="Describe the issue — what happened, when it started, any error messages…"></textarea></div>
+      <div class="field"><label>Description</label><textarea id="ticketDesc" placeholder="Describe your issue in detail…"></textarea></div>
       <div class="divider"></div>
       <div class="submit-row">
         <button class="btn btn-primary" onclick="submitTicket()" id="submitBtn" style="max-width:180px;">Submit Ticket</button>
@@ -255,7 +259,7 @@ td{padding:13px 16px;font-size:13px;vertical-align:middle;}
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Ticket ID</th><th>Issue</th><th>Category</th><th>Priority</th><th>Status</th><th>Assigned To</th><th>Submitted</th></tr></thead>
+          <thead><tr><th>Ticket ID</th><th>Issue</th><th>Department</th><th>Category</th><th>Priority</th><th>Status</th><th>Assigned To</th><th>Submitted</th></tr></thead>
           <tbody id="myTicketsTbody"></tbody>
         </table>
       </div>
@@ -267,8 +271,8 @@ td{padding:13px 16px;font-size:13px;vertical-align:middle;}
 <div id="adminScreen" class="screen">
   <div class="topbar">
     <div class="topbar-brand">
-      <div class="logo-mark" style="width:32px;height:32px;font-size:14px;border-radius:8px;background:linear-gradient(135deg,#ef4444,#f97316);">🖥️</div>
-      ICT <span class="brand-dot">·</span> Admin
+      <div class="logo-mark" id="adminBrandIcon" style="width:32px;height:32px;font-size:14px;border-radius:8px;background:linear-gradient(135deg,#ef4444,#f97316);">🖥️</div>
+      <span id="adminBrandLabel">University</span> <span class="brand-dot">·</span> Admin
     </div>
     <div class="topbar-right">
       <div class="user-chip">
@@ -322,6 +326,9 @@ td{padding:13px 16px;font-size:13px;vertical-align:middle;}
             <option value="network">Network</option>
             <option value="other">Other</option>
           </select>
+          <select class="filter-sel" id="filterDepartment" onchange="renderAdminTable()">
+            <option value="">All Departments</option>
+          </select>
         </div>
         <div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;">
           <button class="btn btn-ghost btn-sm" onclick="exportTickets('excel')" style="border-color:rgba(16,185,129,0.4);color:#34d399;">📊 Export Excel</button>
@@ -329,7 +336,7 @@ td{padding:13px 16px;font-size:13px;vertical-align:middle;}
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>ID</th><th>Requester</th><th>Issue</th><th>Category</th><th>Priority</th><th>Status</th><th>Assign To</th><th>Date</th><th>Actions</th></tr></thead>
+            <thead><tr><th>ID</th><th>Requester</th><th>Issue</th><th>Department</th><th>Category</th><th>Priority</th><th>Status</th><th>Assign To</th><th>Date</th><th>Actions</th></tr></thead>
             <tbody id="adminTbody"></tbody>
           </table>
         </div>
@@ -343,7 +350,7 @@ td{padding:13px 16px;font-size:13px;vertical-align:middle;}
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Department</th><th>Actions</th></tr></thead>
             <tbody id="usersTbody"></tbody>
           </table>
         </div>
@@ -378,10 +385,15 @@ td{padding:13px 16px;font-size:13px;vertical-align:middle;}
     <div class="field"><label>Password</label><input type="password" id="cuPass" placeholder="Min 8 characters"/></div>
     <div class="field">
       <label>Role</label>
-      <select id="cuRole">
+      <select id="cuRole" onchange="onCuRoleChange()">
         <option value="user">User</option>
-        <option value="admin">Admin</option>
+        <option value="admin">Department Admin</option>
+        <option value="superadmin">Super Admin</option>
       </select>
+    </div>
+    <div class="field" id="cuDepartmentField" style="display:none;">
+      <label>Department</label>
+      <select id="cuDepartment"></select>
     </div>
     <button class="btn btn-primary" onclick="createUser()" id="createUserBtn">Create User</button>
   </div>
@@ -467,6 +479,71 @@ function categoryBadge(c){
   const map={hardware:'badge-hardware',software:'badge-software',network:'badge-network',other:'badge-other'};
   return`<span class="badge ${map[c]||'badge-other'}">${c||'—'}</span>`;
 }
+let DEPARTMENTS=[];
+function departmentBadge(d){
+  const dept=DEPARTMENTS.find(x=>x.key===d);
+  const label=dept?`${dept.icon} ${dept.label}`:(d||'—');
+  return`<span class="badge badge-other">${label}</span>`;
+}
+async function loadDepartments(){
+  try{
+    const r=await fetch(`${API}/departments`,{headers:{Authorization:'Bearer '+token}});
+    const data=await r.json();
+    if(r.ok&&data.departments){
+      DEPARTMENTS=data.departments;
+      const deptSel=document.getElementById('ticketDepartment');
+      if(deptSel)deptSel.innerHTML='<option value="">Select a department</option>'+DEPARTMENTS.map(d=>`<option value="${d.key}">${d.icon} ${d.label}</option>`).join('');
+      const filterDeptSel=document.getElementById('filterDepartment');
+      if(filterDeptSel)filterDeptSel.innerHTML='<option value="">All Departments</option>'+DEPARTMENTS.map(d=>`<option value="${d.key}">${d.icon} ${d.label}</option>`).join('');
+      const cuDeptSel=document.getElementById('cuDepartment');
+      if(cuDeptSel)cuDeptSel.innerHTML=DEPARTMENTS.map(d=>`<option value="${d.key}">${d.icon} ${d.label}</option>`).join('');
+      updateAdminBranding();
+    }
+  }catch(e){}
+}
+function updateAdminBranding(){
+  const label=document.getElementById('adminBrandLabel');
+  const icon=document.getElementById('adminBrandIcon');
+  if(!label||!currentUser)return;
+  if(currentUser.role==='superadmin'||!currentUser.department){
+    label.textContent='University';
+    if(icon)icon.textContent='🎓';
+  }else{
+    const dept=DEPARTMENTS.find(d=>d.key===currentUser.department);
+    if(dept){
+      label.textContent=dept.label;
+      if(icon)icon.textContent=dept.icon;
+    }
+  }
+}
+const FIELD_HINTS={
+  ict:{deviceLabel:'Affected Device / System',devicePlaceholder:'e.g. Dell Laptop, HP Printer',descPlaceholder:'Describe the issue — what happened, when it started, any error messages…'},
+  finance:{deviceLabel:'Reference (Invoice/Receipt No.)',devicePlaceholder:'e.g. Receipt #2024-1123',descPlaceholder:'Describe your finance issue — fee balance, refund request, payroll discrepancy…'},
+  academics:{deviceLabel:'Reference (Course/Unit Code)',devicePlaceholder:'e.g. BSC101',descPlaceholder:'Describe your academic issue — registration, transcript, exam, or grade concern…'},
+  hostel:{deviceLabel:'Room Number',devicePlaceholder:'e.g. Block C, Room 12',descPlaceholder:'Describe your accommodation issue — allocation, maintenance, complaint…'},
+  library:{deviceLabel:'Book / Resource Reference',devicePlaceholder:'e.g. ISBN or Book Title',descPlaceholder:'Describe your library issue — access, fines, book request, returns…'}
+};
+function onDepartmentChange(){
+  const deptKey=document.getElementById('ticketDepartment').value;
+  const catSel=document.getElementById('ticketCategory');
+  const dept=DEPARTMENTS.find(d=>d.key===deptKey);
+  if(!dept){
+    catSel.innerHTML='<option value="">Select a department first</option>';
+    document.getElementById('ticketDeviceLabel').textContent='Reference / Affected Item';
+    document.getElementById('ticketDevice').placeholder='Optional reference';
+    document.getElementById('ticketDesc').placeholder='Describe your issue in detail…';
+    document.getElementById('ticketPageSub').textContent='Describe your issue and the relevant department will respond promptly';
+    return;
+  }
+  catSel.innerHTML='<option value="">Select a category</option>'+dept.categories.map(c=>`<option value="${c.key}">${c.label}</option>`).join('');
+  const hint=FIELD_HINTS[deptKey];
+  if(hint){
+    document.getElementById('ticketDeviceLabel').textContent=hint.deviceLabel;
+    document.getElementById('ticketDevice').placeholder=hint.devicePlaceholder;
+    document.getElementById('ticketDesc').placeholder=hint.descPlaceholder;
+  }
+  document.getElementById('ticketPageSub').textContent=`Describe your issue and the ${dept.label} team will respond promptly`;
+}
 
 async function login(){
   const email=document.getElementById('loginEmail').value.trim();
@@ -487,7 +564,8 @@ async function login(){
 
 function initSession(){
   if(!currentUser)return show('loginScreen');
-  if(currentUser.role==='admin'){
+  loadDepartments();
+  if(currentUser.role==='admin'||currentUser.role==='superadmin'){
     document.getElementById('adminName').textContent=currentUser.name||currentUser.email;
     show('adminScreen');
     loadAgents().then(()=>loadAdminTickets());
@@ -545,15 +623,16 @@ async function assignTicket(ticketId,selectEl){
 }
 
 async function submitTicket(){
+  const department=document.getElementById('ticketDepartment').value;
   const title=document.getElementById('ticketTitle').value.trim();
   const category=document.getElementById('ticketCategory').value;
   const priority=document.getElementById('ticketPriority').value;
   const device=document.getElementById('ticketDevice').value.trim();
   const desc=document.getElementById('ticketDesc').value.trim();
-  if(!title||!category||!desc)return toast('Please fill in Title, Category, and Description.','error');
+  if(!department||!title||!category||!desc)return toast('Please fill in Department, Title, Category, and Description.','error');
   setLoading('submitBtn',true);
   try{
-    const r=await fetch(`${API}/tickets`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({title,description:desc,priority,category,device})});
+    const r=await fetch(`${API}/tickets`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({title,description:desc,priority,department,category,device})});
     if(!r.ok)throw new Error();
     await loadMyTickets();clearForm();openModal('successModal');
   }catch(e){toast('Failed to submit ticket. Please try again.','error');}
@@ -562,7 +641,8 @@ async function submitTicket(){
 
 function clearForm(){
   ['ticketTitle','ticketDevice','ticketDesc'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('ticketCategory').value='';
+  document.getElementById('ticketDepartment').value='';
+  document.getElementById('ticketCategory').innerHTML='<option value="">Select a department first</option>';
   document.getElementById('ticketPriority').value='medium';
 }
 
@@ -580,6 +660,7 @@ async function openUserTicketDetail(ticketId) {
     <div style="margin-bottom:20px;">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
         ${statusBadge(ticket.status)}
+        ${departmentBadge(ticket.department)}
         ${priorityBadge(ticket.priority)}
         ${categoryBadge(ticket.category)}
       </div>
@@ -627,6 +708,7 @@ function renderMyTickets(tickets=[]){
     <tr onclick="openUserTicketDetail('${t.id}')" style="cursor:pointer;">
       <td><span class="ticket-id">${t.id}</span></td>
       <td><div class="ticket-title-cell">${t.title}<small>${t.device||''}</small></div></td>
+      <td>${departmentBadge(t.department)}</td>
       <td>${categoryBadge(t.category)}</td>
       <td>${priorityBadge(t.priority)}</td>
       <td>${statusBadge(t.status)}</td>
@@ -683,6 +765,7 @@ async function openTicketDetail(ticketId) {
     <div style="margin-bottom:20px;">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
         ${statusBadge(ticket.status)}
+        ${departmentBadge(ticket.department)}
         ${priorityBadge(ticket.priority)}
         ${categoryBadge(ticket.category)}
       </div>
@@ -796,9 +879,11 @@ function renderAdminTable(){
   const status=document.getElementById('filterStatus').value;
   const prio=document.getElementById('filterPriority').value;
   const cat=document.getElementById('filterCategory').value;
+  const deptSel=document.getElementById('filterDepartment');
+  const dept=deptSel?deptSel.value:'';
   const list=allTickets.filter(t=>{
     const m=!search||(t.title||'').toLowerCase().includes(search)||(t.userEmail||'').toLowerCase().includes(search)||(t.userName||'').toLowerCase().includes(search)||(t.id||'').toLowerCase().includes(search);
-    return m&&(!status||t.status===status)&&(!prio||t.priority===prio)&&(!cat||t.category===cat);
+    return m&&(!status||t.status===status)&&(!prio||t.priority===prio)&&(!cat||t.category===cat)&&(!dept||t.department===dept);
   });
   const tbody=document.getElementById('adminTbody');
   if(!list.length){tbody.innerHTML=`<tr><td colspan="9"><div class="empty-state"><span class="empty-icon">🔍</span><p>No tickets match your filters.</p></div></td></tr>`;return;}
@@ -807,6 +892,7 @@ function renderAdminTable(){
       <td><span class="ticket-id">${t.id}</span></td>
       <td style="font-size:12px;"><span style="font-weight:500;">${t.userName||t.requester||'—'}</span><br><span style="color:var(--text3);font-size:11px;">${t.userEmail||''}</span></td>
       <td><div class="ticket-title-cell">${t.title}<small>${t.device||(t.description||'').substring(0,36)||''}</small></div></td>
+      <td>${departmentBadge(t.department)}</td>
       <td>${categoryBadge(t.category)}</td>
       <td>${priorityBadge(t.priority)}</td>
       <td>
@@ -880,38 +966,47 @@ async function resetPassword() {
 
 async function loadUsers(){
   const tbody=document.getElementById('usersTbody');
-  tbody.innerHTML=`<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--text3);">Loading…</td></tr>`;
+  tbody.innerHTML=`<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text3);">Loading…</td></tr>`;
   try{
     const r=await fetch(`${API}/auth/users`,{headers:{Authorization:'Bearer '+token}});
     const data=await r.json();
     if(!r.ok)throw new Error(data.error);
-    if(!data.users.length){tbody.innerHTML=`<tr><td colspan="4"><div class="empty-state"><span class="empty-icon">👥</span><p>No users found.</p></div></td></tr>`;return;}
+    if(!data.users.length){tbody.innerHTML=`<tr><td colspan="5"><div class="empty-state"><span class="empty-icon">👥</span><p>No users found.</p></div></td></tr>`;return;}
+    const roleBadge=u=>u.role==='superadmin'?'<span class="badge badge-high">Super Admin</span>':u.role==='admin'?'<span class="badge badge-assigned">Admin</span>':'<span class="badge badge-other">User</span>';
     tbody.innerHTML=data.users.map(u=>`
       <tr>
         <td style="font-weight:500;">${u.name}</td>
         <td style="font-size:12px;color:var(--text2);">${u.email}</td>
-        <td>${u.role==='admin'?'<span class="badge badge-assigned">Admin</span>':'<span class="badge badge-other">User</span>'}</td>
+        <td>${roleBadge(u)}</td>
+        <td>${u.department?departmentBadge(u.department):'<span style="color:var(--text3);font-size:11px;">—</span>'}</td>
         <td><div class="actions">${u.id!==currentUser.id?`<button class="btn btn-ghost btn-sm" onclick="openResetModal('${u.id}','${u.name}')">🔑 Reset</button><button class="btn btn-danger btn-sm" onclick="deleteUser('${u.id}','${u.name}')">🗑 Delete</button>`:'<span style="font-size:11px;color:var(--text3)">You</span>'}</div></td>
       </tr>
     `).join('');
-  }catch(e){tbody.innerHTML=`<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--danger);">Failed to load users.</td></tr>`;}
+  }catch(e){tbody.innerHTML=`<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--danger);">Failed to load users.</td></tr>`;}
 }
 
+function onCuRoleChange(){
+  const role=document.getElementById('cuRole').value;
+  document.getElementById('cuDepartmentField').style.display=(role==='admin')?'block':'none';
+}
 async function createUser(){
   const name=document.getElementById('cuName').value.trim();
   const email=document.getElementById('cuEmail').value.trim();
   const pass=document.getElementById('cuPass').value;
   const role=document.getElementById('cuRole').value;
+  const department=role==='admin'?document.getElementById('cuDepartment').value:undefined;
   if(!name||!email||!pass)return showErr('createUserErr','All fields are required.');
   if(pass.length<8)return showErr('createUserErr','Password must be at least 8 characters.');
+  if(role==='admin'&&!department)return showErr('createUserErr','Please select a department for this admin.');
   setLoading('createUserBtn',true);
   try{
-    const r=await fetch(`${API}/auth/users`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({name,email,password:pass,role})});
+    const r=await fetch(`${API}/auth/users`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({name,email,password:pass,role,department})});
     const data=await r.json();
     if(!r.ok)throw new Error(data.error||'Failed to create user.');
     closeModal('createUserModal');
     ['cuName','cuEmail','cuPass'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('cuRole').value='user';
+    document.getElementById('cuDepartmentField').style.display='none';
     toast(`User "${name}" created.`);
     loadUsers();
     if(role==='admin')loadAgents();
