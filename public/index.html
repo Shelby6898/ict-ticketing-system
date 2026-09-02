@@ -919,7 +919,14 @@ function renderAdminTable(){
       <td><div class="ticket-title-cell">${t.title}<small>${t.device||(t.description||'').substring(0,36)||''}</small></div></td>
       <td>${departmentBadge(t.department)}</td>
       <td>${categoryBadge(t.category)}</td>
-      <td>${priorityBadge(t.priority)}</td>
+      <td>
+        <select class="status-select" onchange="changePriority('${t.id}',this.value)">
+          <option value="low" ${t.priority==='low'?'selected':''}>🟢 Low</option>
+          <option value="medium" ${t.priority==='medium'?'selected':''}>🟡 Medium</option>
+          <option value="high" ${t.priority==='high'?'selected':''}>🔴 High</option>
+          <option value="urgent" ${t.priority==='urgent'?'selected':''}>🚨 Urgent</option>
+        </select>
+      </td>
       <td>
         <select class="status-select" onchange="changeStatus('${t.id}',this.value)">
           <option value="open" ${t.status==='open'?'selected':''}>Open</option>
@@ -945,6 +952,22 @@ async function changeStatus(id,status){
     if(!r.ok)throw new Error();
     toast(`Status updated to "${status}"`);
   }catch(e){toast(`Status updated to "${status}"`);}
+}
+
+async function changePriority(id,priority){
+  const idx=allTickets.findIndex(t=>t.id===id);
+  const prev=idx>-1?allTickets[idx].priority:null;
+  if(idx>-1)allTickets[idx].priority=priority;
+  try{
+    const r=await fetch(`${API}/tickets/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({priority})});
+    const data=await r.json();
+    if(!r.ok)throw new Error(data.error||'Failed to update priority.');
+    toast(`Priority updated to "${priority}"`);
+  }catch(e){
+    if(idx>-1)allTickets[idx].priority=prev;
+    renderAdminTable();
+    toast('❌ '+e.message,'error');
+  }
 }
 
 async function deleteTicket(id){
