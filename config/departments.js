@@ -10,6 +10,18 @@ const DEPARTMENTS = {
       other: 'Other'
     }
   },
+  hr: {
+    label: 'Human Resource',
+    icon: '🧑‍💼',
+    categories: {
+      leave: 'Leave & Absence',
+      payroll: 'Payroll & Benefits',
+      records: 'Records & Portal Access',
+      recruitment: 'Recruitment & Onboarding',
+      performance: 'Appraisal & Promotion',
+      other: 'Other'
+    }
+  },
   finance: {
     label: 'Finance',
     icon: '💰',
