@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>University HelpDesk</title>
+<title>Ticketing HelpDesk</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <style>
 :root {
@@ -184,7 +184,7 @@ td{padding:13px 16px;font-size:13px;vertical-align:middle;}
   <div class="auth-card">
     <div class="auth-logo">
       <div class="logo-mark">🎓</div>
-      <div class="logo-text">University <span>HelpDesk</span></div>
+      <div class="logo-text">Ticketing <span>HelpDesk</span></div>
     </div>
     <h2 class="auth-heading">Welcome back</h2>
     <p class="auth-sub">Sign in to your workspace to continue</p>
@@ -200,7 +200,7 @@ td{padding:13px 16px;font-size:13px;vertical-align:middle;}
   <div class="topbar">
     <div class="topbar-brand">
       <div class="logo-mark" style="width:32px;height:32px;font-size:14px;border-radius:8px;">🎓</div>
-      University <span class="brand-dot">·</span> HelpDesk
+      Ticketing <span class="brand-dot">·</span> HelpDesk
     </div>
     <div class="topbar-right">
       <div class="user-chip">
@@ -272,7 +272,7 @@ td{padding:13px 16px;font-size:13px;vertical-align:middle;}
   <div class="topbar">
     <div class="topbar-brand">
       <div class="logo-mark" id="adminBrandIcon" style="width:32px;height:32px;font-size:14px;border-radius:8px;background:linear-gradient(135deg,#ef4444,#f97316);">🖥️</div>
-      <span id="adminBrandLabel">University</span> <span class="brand-dot">·</span> Admin
+      <span id="adminBrandLabel">Ticketing</span> <span class="brand-dot">·</span> Admin
     </div>
     <div class="topbar-right">
       <div class="user-chip">
@@ -526,7 +526,7 @@ function updateAdminBranding(){
   if(filterDeptSel)filterDeptSel.style.display=isSuperAdmin?'':'none';
   if(!label||!currentUser)return;
   if(currentUser.role==='superadmin'||!currentUser.department){
-    label.textContent='University';
+    label.textContent='Ticketing';
     if(icon)icon.textContent='🎓';
   }else{
     const dept=DEPARTMENTS.find(d=>d.key===currentUser.department);

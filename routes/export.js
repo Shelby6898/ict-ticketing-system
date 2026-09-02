@@ -45,7 +45,7 @@ router.get('/excel', auth, isAdmin, async (req, res, next) => {
     const tickets = await getTickets(req.query);
 
     const workbook = new ExcelJS.Workbook();
-    workbook.creator = 'University HelpDesk';
+    workbook.creator = 'Ticketing HelpDesk';
     workbook.created = new Date();
 
     const sheet = workbook.addWorksheet('Tickets', {
@@ -188,7 +188,7 @@ router.get('/pdf', auth, isAdmin, async (req, res, next) => {
     doc.rect(0, 0, doc.page.width, 70).fill('#6366f1');
     doc.fillColor('#ffffff')
        .fontSize(22).font('Helvetica-Bold')
-       .text('University HelpDesk', 40, 18);
+       .text('Ticketing HelpDesk', 40, 18);
     doc.fontSize(11).font('Helvetica')
        .text(`Ticket Export — ${tickets.length} tickets — ${fmtDate(Date.now())}`, 40, 46);
 
@@ -285,7 +285,7 @@ router.get('/pdf', auth, isAdmin, async (req, res, next) => {
 
     // ── Footer ──
     doc.fontSize(8).fillColor('#94a3b8').font('Helvetica')
-       .text(`University HelpDesk — Generated ${fmtDate(Date.now())}`,
+       .text(`Ticketing HelpDesk — Generated ${fmtDate(Date.now())}`,
          40, doc.page.height - 30, { align: 'center' });
 
     doc.end();

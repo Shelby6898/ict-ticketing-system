@@ -141,10 +141,10 @@ router.patch('/users/:id/reset-password', auth, isSuperAdmin, async (req, res, n
 
     await sendEmail({
       to: user.email,
-      subject: '🔑 Your Password Has Been Reset — University HelpDesk',
+      subject: '🔑 Your Password Has Been Reset — Ticketing HelpDesk',
       html: `
         <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;">
-          <h2 style="color:#6366f1;">University HelpDesk</h2>
+          <h2 style="color:#6366f1;">Ticketing HelpDesk</h2>
           <p>Hi ${user.name},</p>
           <p>Your password has been reset by an administrator.</p>
           <div style="background:#f1f5f9;border-radius:8px;padding:16px;margin:20px 0;">
@@ -154,7 +154,7 @@ router.patch('/users/:id/reset-password', auth, isSuperAdmin, async (req, res, n
           <p style="color:#64748b;font-size:13px;">Please log in and change your password as soon as possible.</p>
           <a href="${process.env.BASE_URL}" style="display:inline-block;padding:10px 20px;background:#6366f1;color:#fff;border-radius:6px;text-decoration:none;font-weight:600;">Log In →</a>
           <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;"/>
-          <p style="color:#94a3b8;font-size:12px;">University HelpDesk — ${process.env.BASE_URL}</p>
+          <p style="color:#94a3b8;font-size:12px;">Ticketing HelpDesk — ${process.env.BASE_URL}</p>
         </div>
       `
     });

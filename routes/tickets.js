@@ -77,7 +77,7 @@ router.post('/', auth, async (req, res, next) => {
       subject: `✅ Ticket Received: ${title}`,
       html: `
         <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;">
-          <h2 style="color:#6366f1;">University HelpDesk</h2>
+          <h2 style="color:#6366f1;">Ticketing HelpDesk</h2>
           <p>Hi ${requesterName},</p>
           <p>Your ticket has been received and the ${department.toUpperCase()} team will get back to you shortly.</p>
           <div style="background:#f1f5f9;border-radius:8px;padding:16px;margin:20px 0;">
@@ -90,7 +90,7 @@ router.post('/', auth, async (req, res, next) => {
           </div>
           <p style="color:#64748b;font-size:13px;">You will be notified when your ticket is updated.</p>
           <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;"/>
-          <p style="color:#94a3b8;font-size:12px;">University HelpDesk — ${process.env.BASE_URL}</p>
+          <p style="color:#94a3b8;font-size:12px;">Ticketing HelpDesk — ${process.env.BASE_URL}</p>
         </div>
       `
     });
@@ -108,7 +108,7 @@ router.post('/', auth, async (req, res, next) => {
         subject: `🎫 New ${department.toUpperCase()} Ticket: ${title}`,
         html: `
           <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;">
-            <h2 style="color:#ef4444;">University HelpDesk — New Ticket</h2>
+            <h2 style="color:#ef4444;">Ticketing HelpDesk — New Ticket</h2>
             <p>A new support ticket has been submitted to ${department.toUpperCase()}.</p>
             <div style="background:#f1f5f9;border-radius:8px;padding:16px;margin:20px 0;">
               <p style="margin:0 0 8px;"><strong>Ticket ID:</strong> ${docRef.id}</p>
@@ -121,7 +121,7 @@ router.post('/', auth, async (req, res, next) => {
             </div>
             <a href="${process.env.BASE_URL}" style="display:inline-block;padding:10px 20px;background:#6366f1;color:#fff;border-radius:6px;text-decoration:none;font-weight:600;">Open HelpDesk →</a>
             <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;"/>
-            <p style="color:#94a3b8;font-size:12px;">University HelpDesk — ${process.env.BASE_URL}</p>
+            <p style="color:#94a3b8;font-size:12px;">Ticketing HelpDesk — ${process.env.BASE_URL}</p>
           </div>
         `
       });
@@ -155,7 +155,7 @@ router.patch('/:id/status', auth, isAdmin, async (req, res, next) => {
         subject: `🔄 Ticket Update: ${ticket.title}`,
         html: `
           <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;">
-            <h2 style="color:#6366f1;">University HelpDesk</h2>
+            <h2 style="color:#6366f1;">Ticketing HelpDesk</h2>
             <p>Hi ${ticket.userName || ticket.requester || 'there'},</p>
             <p>Your ticket status has been updated.</p>
             <div style="background:#f1f5f9;border-radius:8px;padding:16px;margin:20px 0;">
@@ -164,7 +164,7 @@ router.patch('/:id/status', auth, isAdmin, async (req, res, next) => {
             </div>
             <a href="${process.env.BASE_URL}" style="display:inline-block;padding:10px 20px;background:#6366f1;color:#fff;border-radius:6px;text-decoration:none;font-weight:600;">View Ticket →</a>
             <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;"/>
-            <p style="color:#94a3b8;font-size:12px;">University HelpDesk — ${process.env.BASE_URL}</p>
+            <p style="color:#94a3b8;font-size:12px;">Ticketing HelpDesk — ${process.env.BASE_URL}</p>
           </div>
         `
       });
@@ -209,7 +209,7 @@ router.patch('/:id/assign', auth, isAdmin, async (req, res, next) => {
       subject: `📋 Ticket Assigned to You: ${ticket.title}`,
       html: `
         <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;">
-          <h2 style="color:#6366f1;">University HelpDesk</h2>
+          <h2 style="color:#6366f1;">Ticketing HelpDesk</h2>
           <p>Hi ${agent.name},</p>
           <p>A ticket has been assigned to you.</p>
           <div style="background:#f1f5f9;border-radius:8px;padding:16px;margin:20px 0;">
@@ -222,7 +222,7 @@ router.patch('/:id/assign', auth, isAdmin, async (req, res, next) => {
           </div>
           <a href="${process.env.BASE_URL}" style="display:inline-block;padding:10px 20px;background:#6366f1;color:#fff;border-radius:6px;text-decoration:none;font-weight:600;">Open HelpDesk →</a>
           <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;"/>
-          <p style="color:#94a3b8;font-size:12px;">University HelpDesk — ${process.env.BASE_URL}</p>
+          <p style="color:#94a3b8;font-size:12px;">Ticketing HelpDesk — ${process.env.BASE_URL}</p>
         </div>
       `
     });
