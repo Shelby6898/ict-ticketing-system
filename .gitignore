@@ -2,4 +2,4 @@ node_modules/
 .env
 serviceAccountKey.json
 .env
-.env.local
+.env.localbackup-*/
