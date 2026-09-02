@@ -1,12 +1,17 @@
 const admin = require('firebase-admin');
+const fs = require('fs');
 
 let serviceAccount;
 
-if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
-  // Preferred: one single JSON blob, no field reconstruction, no \n gymnastics.
+// Preferred: Render "Secret Files" mounts uploaded files at /etc/secrets/<filename>
+const secretFilePath = '/etc/secrets/firebase-service-account.json';
+
+if (fs.existsSync(secretFilePath)) {
+  serviceAccount = JSON.parse(fs.readFileSync(secretFilePath, 'utf8'));
+} else if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
   serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
 } else {
-  // Fallback: individual fields (legacy).
+  // Legacy fallback: individual fields
   serviceAccount = {
     type: process.env.FIREBASE_TYPE,
     project_id: process.env.FIREBASE_PROJECT_ID,
