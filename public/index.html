@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>ICT HelpDesk</title>
+<title>University HelpDesk</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <style>
 :root {
@@ -249,7 +249,7 @@ td{padding:13px 16px;font-size:13px;vertical-align:middle;}
       <div class="divider"></div>
       <div class="submit-row">
         <button class="btn btn-primary" onclick="submitTicket()" id="submitBtn" style="max-width:180px;">Submit Ticket</button>
-        <p class="submit-hint">Our ICT team will review your ticket and respond promptly.</p>
+        <p class="submit-hint" id="ticketSubmitHint">Our support team will review your ticket and respond promptly.</p>
       </div>
     </div>
     <div class="my-tickets">
@@ -366,7 +366,7 @@ td{padding:13px 16px;font-size:13px;vertical-align:middle;}
     <div class="success-popup">
       <div class="success-ring">✅</div>
       <h3>Ticket Submitted!</h3>
-      <p>Your ticket has been received. Our ICT team will review it shortly.</p>
+      <p id="successModalText">Your ticket has been received. Our support team will review it shortly.</p>
       <button class="btn btn-primary" onclick="closeModal('successModal')" style="max-width:140px;">Done</button>
     </div>
   </div>
@@ -563,6 +563,8 @@ function onDepartmentChange(){
     document.getElementById('ticketDesc').placeholder=hint.descPlaceholder;
   }
   document.getElementById('ticketPageSub').textContent=`Describe your issue and the ${dept.label} team will respond promptly`;
+  const submitHint=document.getElementById('ticketSubmitHint');
+  if(submitHint)submitHint.textContent=`Our ${dept.label} team will review your ticket and respond promptly.`;
 }
 
 async function login(){
@@ -654,6 +656,9 @@ async function submitTicket(){
   try{
     const r=await fetch(`${API}/tickets`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({title,description:desc,priority,department,category,device})});
     if(!r.ok)throw new Error();
+    const submittedDept=DEPARTMENTS.find(d=>d.key===department);
+    const successText=document.getElementById('successModalText');
+    if(successText)successText.textContent=`Your ticket has been received. Our ${submittedDept?submittedDept.label:''} team will review it shortly.`;
     await loadMyTickets();clearForm();openModal('successModal');
   }catch(e){toast('Failed to submit ticket. Please try again.','error');}
   finally{setLoading('submitBtn',false);}
