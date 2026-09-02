@@ -282,11 +282,11 @@ td{padding:13px 16px;font-size:13px;vertical-align:middle;}
       <button class="btn btn-ghost btn-sm" onclick="logout()">Sign out</button>
     </div>
   </div>
-  <div style="display:flex;gap:8px;padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--border);"><button class="btn btn-ghost btn-sm" onclick="showAdminPanel('tickets')">📊 Overview</button><button class="btn btn-ghost btn-sm" onclick="showAdminPanel('users')">👥 Users</button></div><div class="admin-layout">
+  <div style="display:flex;gap:8px;padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--border);"><button class="btn btn-ghost btn-sm" onclick="showAdminPanel('tickets')">📊 Overview</button><button class="btn btn-ghost btn-sm" id="topNavUsersBtn" onclick="showAdminPanel('users')">👥 Users</button></div><div class="admin-layout">
     <div class="sidebar" id="sidebar">
       <div class="sidebar-section">Navigation</div>
       <div class="nav-item active" id="navTickets" onclick="showAdminPanel('tickets')"><span class="nav-icon">📊</span> Overview</div>
-      <div class="nav-item" id="navUsers" onclick="showAdminPanel('users')"><span class="nav-icon">👥</span> Users</div>
+      <div class="nav-item" id="navUsers" onclick="showAdminPanel('users')" style="display:none;"><span class="nav-icon">👥</span> Users</div>
       <div class="sidebar-section">Account</div>
       <div class="nav-item" onclick="logout()"><span class="nav-icon">🚪</span> Sign Out</div>
     </div>
@@ -399,6 +399,19 @@ td{padding:13px 16px;font-size:13px;vertical-align:middle;}
   </div>
 </div>
 
+<div class="modal-overlay" id="changeDepartmentModal">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <span class="modal-title">🏢 Change Department</span>
+      <button class="modal-close" onclick="closeModal('changeDepartmentModal')">✕</button>
+    </div>
+    <div class="err-msg" id="changeDeptErr"></div>
+    <p style="color:var(--text2);font-size:13px;margin-bottom:20px;">Reassigning <strong id="changeDeptUserName"></strong> to a new department</p>
+    <div class="field"><label>Department</label><select id="changeDeptSelect"></select></div>
+    <button class="btn btn-primary" onclick="submitChangeDepartment()" id="changeDeptBtn">Update Department</button>
+  </div>
+</div>
+
 <div class="modal-overlay" id="resetPasswordModal">
   <div class="modal" style="max-width:420px;">
     <div class="modal-header">
@@ -504,6 +517,11 @@ async function loadDepartments(){
 function updateAdminBranding(){
   const label=document.getElementById('adminBrandLabel');
   const icon=document.getElementById('adminBrandIcon');
+  const topNavUsersBtn=document.getElementById('topNavUsersBtn');
+  const navUsers=document.getElementById('navUsers');
+  const isSuperAdmin=currentUser&&currentUser.role==='superadmin';
+  if(topNavUsersBtn)topNavUsersBtn.style.display=isSuperAdmin?'':'none';
+  if(navUsers)navUsers.style.display=isSuperAdmin?'':'none';
   if(!label||!currentUser)return;
   if(currentUser.role==='superadmin'||!currentUser.department){
     label.textContent='University';
@@ -964,6 +982,37 @@ async function resetPassword() {
   }
 }
 
+let changeDeptTargetId = null;
+function openChangeDeptModal(id, name){
+  changeDeptTargetId = id;
+  document.getElementById('changeDeptUserName').textContent = name;
+  const sel = document.getElementById('changeDeptSelect');
+  sel.innerHTML = DEPARTMENTS.map(d => `<option value="${d.key}">${d.icon} ${d.label}</option>`).join('');
+  openModal('changeDepartmentModal');
+}
+async function submitChangeDepartment(){
+  const department = document.getElementById('changeDeptSelect').value;
+  if(!department) return showErr('changeDeptErr','Please select a department.');
+  setLoading('changeDeptBtn', true);
+  try{
+    const r = await fetch(`${API}/auth/users/${changeDeptTargetId}/department`,{
+      method:'PATCH',
+      headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},
+      body: JSON.stringify({ department })
+    });
+    const data = await r.json();
+    if(!r.ok) throw new Error(data.error || 'Failed to update department.');
+    closeModal('changeDepartmentModal');
+    toast('Department updated.');
+    loadUsers();
+    loadAgents();
+  }catch(e){
+    showErr('changeDeptErr', e.message);
+  }finally{
+    setLoading('changeDeptBtn', false);
+  }
+}
+
 async function loadUsers(){
   const tbody=document.getElementById('usersTbody');
   tbody.innerHTML=`<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text3);">Loading…</td></tr>`;
@@ -979,7 +1028,7 @@ async function loadUsers(){
         <td style="font-size:12px;color:var(--text2);">${u.email}</td>
         <td>${roleBadge(u)}</td>
         <td>${u.department?departmentBadge(u.department):'<span style="color:var(--text3);font-size:11px;">—</span>'}</td>
-        <td><div class="actions">${u.id!==currentUser.id?`<button class="btn btn-ghost btn-sm" onclick="openResetModal('${u.id}','${u.name}')">🔑 Reset</button><button class="btn btn-danger btn-sm" onclick="deleteUser('${u.id}','${u.name}')">🗑 Delete</button>`:'<span style="font-size:11px;color:var(--text3)">You</span>'}</div></td>
+        <td><div class="actions">${u.id!==currentUser.id?`${(u.role==='admin'&&currentUser.role==='superadmin')?`<button class="btn btn-ghost btn-sm" onclick="openChangeDeptModal('${u.id}','${u.name}')">🏢 Dept</button>`:''}<button class="btn btn-ghost btn-sm" onclick="openResetModal('${u.id}','${u.name}')">🔑 Reset</button><button class="btn btn-danger btn-sm" onclick="deleteUser('${u.id}','${u.name}')">🗑 Delete</button>`:'<span style="font-size:11px;color:var(--text3)">You</span>'}</div></td>
       </tr>
     `).join('');
   }catch(e){tbody.innerHTML=`<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--danger);">Failed to load users.</td></tr>`;}

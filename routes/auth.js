@@ -7,6 +7,7 @@ const { db } = require('../services/firebase');
 const { sendEmail } = require('../services/email');
 const auth = require('../middleware/auth');
 const isAdmin = require('../middleware/admin');
+const isSuperAdmin = require('../middleware/superadmin');
 const { isValidDepartment } = require('../config/departments');
 
 const loginLimiter = rateLimit({
@@ -51,7 +52,7 @@ router.post('/login', loginLimiter, async (req, res, next) => {
 });
 
 // CREATE USER (admin only)
-router.post('/users', auth, isAdmin, async (req, res, next) => {
+router.post('/users', auth, isSuperAdmin, async (req, res, next) => {
   try {
     const { name, email, password, role = 'user', department } = req.body;
     if (!name || !email || !password) {
@@ -101,7 +102,7 @@ router.post('/users', auth, isAdmin, async (req, res, next) => {
 });
 
 // LIST USERS (admin only)
-router.get('/users', auth, isAdmin, async (req, res, next) => {
+router.get('/users', auth, isSuperAdmin, async (req, res, next) => {
   try {
     const snap = await db.collection('users').orderBy('createdAt', 'desc').get();
     const users = snap.docs.map(d => {
@@ -115,7 +116,7 @@ router.get('/users', auth, isAdmin, async (req, res, next) => {
 });
 
 // RESET PASSWORD (admin only)
-router.patch('/users/:id/reset-password', auth, isAdmin, async (req, res, next) => {
+router.patch('/users/:id/reset-password', auth, isSuperAdmin, async (req, res, next) => {
   try {
     const { newPassword } = req.body;
 
@@ -164,7 +165,7 @@ router.patch('/users/:id/reset-password', auth, isAdmin, async (req, res, next) 
 });
 
 // DELETE USER (admin only)
-router.delete('/users/:id', auth, isAdmin, async (req, res, next) => {
+router.delete('/users/:id', auth, isSuperAdmin, async (req, res, next) => {
   try {
     if (req.params.id === req.user.id) {
       return res.status(400).json({ error: 'You cannot delete your own account.' });
@@ -176,6 +177,32 @@ router.delete('/users/:id', auth, isAdmin, async (req, res, next) => {
     }
     await userRef.delete();
     res.json({ message: 'User deleted.' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+
+// CHANGE DEPARTMENT (superadmin only)
+router.patch('/users/:id/department', auth, isSuperAdmin, async (req, res, next) => {
+  try {
+    if (req.user.role !== 'superadmin') {
+      return res.status(403).json({ error: 'Only a superadmin can change a department.' });
+    }
+    const { department } = req.body;
+    const { isValidDepartment } = require('../config/departments');
+    if (!isValidDepartment(department)) {
+      return res.status(400).json({ error: 'A valid department is required.' });
+    }
+    const userRef = db.collection('users').doc(req.params.id);
+    const userDoc = await userRef.get();
+    if (!userDoc.exists) return res.status(404).json({ error: 'User not found.' });
+    const user = userDoc.data();
+    if (user.role !== 'admin') {
+      return res.status(400).json({ error: 'Only department admins have a department to change.' });
+    }
+    await userRef.update({ department });
+    res.json({ message: 'Department updated.', department });
   } catch (err) {
     next(err);
   }
