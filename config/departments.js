@@ -1,6 +1,6 @@
 const DEPARTMENTS = {
   ict: {
-    label: 'ICT',
+    label: 'Directorate of ICT Services',
     icon: '🖥️',
     categories: {
       hardware: 'Hardware',
@@ -11,7 +11,7 @@ const DEPARTMENTS = {
     }
   },
   hr: {
-    label: 'Human Resource',
+    label: 'Registrar (HR & Administration)',
     icon: '🧑‍💼',
     categories: {
       leave: 'Leave & Absence',
@@ -23,7 +23,7 @@ const DEPARTMENTS = {
     }
   },
   finance: {
-    label: 'Finance',
+    label: 'Finance Department',
     icon: '💰',
     categories: {
       fees: 'Fees',
@@ -34,24 +34,13 @@ const DEPARTMENTS = {
     }
   },
   academics: {
-    label: 'Academics',
+    label: 'Office of Academics, Student Affairs & Research',
     icon: '🎓',
     categories: {
       registration: 'Registration',
       transcripts: 'Transcripts',
       exams: 'Exams',
       grades: 'Grades',
-      other: 'Other'
-    }
-  },
-  hostel: {
-    label: 'Hostel/Accommodation',
-    icon: '🏠',
-    categories: {
-      allocation: 'Room Allocation',
-      maintenance: 'Maintenance',
-      complaint: 'Complaint',
-      transfer: 'Room Transfer',
       other: 'Other'
     }
   },
