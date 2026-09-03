@@ -350,7 +350,7 @@ td{padding:13px 16px;font-size:13px;vertical-align:middle;}
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Department</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Department</th><th>Home Dept.</th><th>Actions</th></tr></thead>
             <tbody id="usersTbody"></tbody>
           </table>
         </div>
@@ -390,6 +390,10 @@ td{padding:13px 16px;font-size:13px;vertical-align:middle;}
         <option value="admin">Department Admin</option>
         <option value="superadmin">Super Admin</option>
       </select>
+    </div>
+    <div class="field" id="cuHomeDeptField">
+      <label>Home Department / Office (optional)</label>
+      <input type="text" id="cuHomeDept" placeholder="e.g. School of Computing and Information Technology"/>
     </div>
     <div class="field" id="cuDepartmentField" style="display:none;">
       <label>Department</label>
@@ -1045,12 +1049,12 @@ async function submitChangeDepartment(){
 
 async function loadUsers(){
   const tbody=document.getElementById('usersTbody');
-  tbody.innerHTML=`<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text3);">Loading…</td></tr>`;
+  tbody.innerHTML=`<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text3);">Loading…</td></tr>`;
   try{
     const r=await fetch(`${API}/auth/users`,{headers:{Authorization:'Bearer '+token}});
     const data=await r.json();
     if(!r.ok)throw new Error(data.error);
-    if(!data.users.length){tbody.innerHTML=`<tr><td colspan="5"><div class="empty-state"><span class="empty-icon">👥</span><p>No users found.</p></div></td></tr>`;return;}
+    if(!data.users.length){tbody.innerHTML=`<tr><td colspan="6"><div class="empty-state"><span class="empty-icon">👥</span><p>No users found.</p></div></td></tr>`;return;}
     const roleBadge=u=>u.role==='superadmin'?'<span class="badge badge-high">Super Admin</span>':u.role==='admin'?'<span class="badge badge-assigned">Admin</span>':'<span class="badge badge-other">User</span>';
     tbody.innerHTML=data.users.map(u=>`
       <tr>
@@ -1058,15 +1062,17 @@ async function loadUsers(){
         <td style="font-size:12px;color:var(--text2);">${u.email}</td>
         <td>${roleBadge(u)}</td>
         <td>${u.department?departmentBadge(u.department):'<span style="color:var(--text3);font-size:11px;">—</span>'}</td>
+        <td style="font-size:12px;color:var(--text2);">${u.homeDepartment||'<span style="color:var(--text3);font-size:11px;">—</span>'}</td>
         <td><div class="actions">${u.id!==currentUser.id?`${(u.role==='admin'&&currentUser.role==='superadmin')?`<button class="btn btn-ghost btn-sm" onclick="openChangeDeptModal('${u.id}','${u.name}')">🏢 Dept</button>`:''}<button class="btn btn-ghost btn-sm" onclick="openResetModal('${u.id}','${u.name}')">🔑 Reset</button><button class="btn btn-danger btn-sm" onclick="deleteUser('${u.id}','${u.name}')">🗑 Delete</button>`:'<span style="font-size:11px;color:var(--text3)">You</span>'}</div></td>
       </tr>
     `).join('');
-  }catch(e){tbody.innerHTML=`<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--danger);">Failed to load users.</td></tr>`;}
+  }catch(e){tbody.innerHTML=`<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--danger);">Failed to load users.</td></tr>`;}
 }
 
 function onCuRoleChange(){
   const role=document.getElementById('cuRole').value;
   document.getElementById('cuDepartmentField').style.display=(role==='admin')?'block':'none';
+  document.getElementById('cuHomeDeptField').style.display=(role==='user')?'block':'none';
 }
 async function createUser(){
   const name=document.getElementById('cuName').value.trim();
@@ -1074,18 +1080,20 @@ async function createUser(){
   const pass=document.getElementById('cuPass').value;
   const role=document.getElementById('cuRole').value;
   const department=role==='admin'?document.getElementById('cuDepartment').value:undefined;
+  const homeDepartment=role==='user'?document.getElementById('cuHomeDept').value.trim():undefined;
   if(!name||!email||!pass)return showErr('createUserErr','All fields are required.');
   if(pass.length<8)return showErr('createUserErr','Password must be at least 8 characters.');
   if(role==='admin'&&!department)return showErr('createUserErr','Please select a department for this admin.');
   setLoading('createUserBtn',true);
   try{
-    const r=await fetch(`${API}/auth/users`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({name,email,password:pass,role,department})});
+    const r=await fetch(`${API}/auth/users`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({name,email,password:pass,role,department,homeDepartment})});
     const data=await r.json();
     if(!r.ok)throw new Error(data.error||'Failed to create user.');
     closeModal('createUserModal');
     ['cuName','cuEmail','cuPass'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('cuRole').value='user';
     document.getElementById('cuDepartmentField').style.display='none';
+    document.getElementById('cuHomeDept').value='';
     toast(`User "${name}" created.`);
     loadUsers();
     if(role==='admin')loadAgents();

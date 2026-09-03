@@ -54,7 +54,7 @@ router.post('/login', loginLimiter, async (req, res, next) => {
 // CREATE USER (admin only)
 router.post('/users', auth, isSuperAdmin, async (req, res, next) => {
   try {
-    const { name, email, password, role = 'user', department } = req.body;
+    const { name, email, password, role = 'user', department, homeDepartment } = req.body;
     if (!name || !email || !password) {
       return res.status(400).json({ error: 'name, email and password are required.' });
     }
@@ -83,18 +83,20 @@ router.post('/users', auth, isSuperAdmin, async (req, res, next) => {
     const hash = await bcrypt.hash(password, 10);
     const { admin: adminSdk } = require('../services/firebase');
     const userDept = role === 'admin' ? department : null;
+    const homeDept = role === 'user' ? (homeDepartment && homeDepartment.trim() ? homeDepartment.trim() : null) : null;
     const userRef = await db.collection('users').add({
       name,
       email: cleanEmail,
       password: hash,
       role,
       department: userDept,
+      homeDepartment: homeDept,
       createdAt: adminSdk.firestore.FieldValue.serverTimestamp(),
       createdBy: req.user.id
     });
     res.status(201).json({
       message: 'User created successfully.',
-      user: { id: userRef.id, name, email: cleanEmail, role, department: userDept }
+      user: { id: userRef.id, name, email: cleanEmail, role, department: userDept, homeDepartment: homeDept }
     });
   } catch (err) {
     next(err);
@@ -107,7 +109,7 @@ router.get('/users', auth, isSuperAdmin, async (req, res, next) => {
     const snap = await db.collection('users').orderBy('createdAt', 'desc').get();
     const users = snap.docs.map(d => {
       const data = d.data();
-      return { id: d.id, name: data.name, email: data.email, role: data.role, department: data.department || null, createdAt: data.createdAt };
+      return { id: d.id, name: data.name, email: data.email, role: data.role, department: data.department || null, homeDepartment: data.homeDepartment || null, createdAt: data.createdAt };
     });
     res.json({ users });
   } catch (err) {
